@@ -399,9 +399,16 @@ export class RubiksCubeApp {
       this._rafId = null;
     }
     // Finish / cancel any in-progress animation so cubies are re-parented back
-    // to the scene before we dispose them. Use the silent variant — we do not
-    // want to fire onQueueEmpty callbacks during teardown.
-    this._clearQueueSilently();
+    // to the scene before we dispose them.  Temporarily null the onMoveComplete
+    // callback so that _finishCurrentMove() (called inside _clearQueueSilently)
+    // cannot fire into already-torn-down UI state.
+    const savedOnMoveComplete = this.onMoveComplete;
+    this.onMoveComplete = null;
+    try {
+      this._clearQueueSilently();
+    } finally {
+      this.onMoveComplete = savedOnMoveComplete;
+    }
     // Belt-and-suspenders: remove pivot group if it somehow still exists
     if (this.pivot) {
       this.scene.remove(this.pivot);

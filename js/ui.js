@@ -39,6 +39,7 @@ function makeTokenHTML(token, index, state /* 'idle'|'active'|'done' */ = 'idle'
   const cls = state === 'active' ? ' active' : state === 'done' ? ' done' : '';
   return `<span class="move-token${cls}"
                 data-idx="${index}"
+                data-token="${escapeHtml(token)}"
                 style="background:${bg};color:${fg};">${escapeHtml(token)}</span>`;
 }
 
@@ -220,8 +221,15 @@ export class UI {
     const nodes = container.querySelectorAll('.move-token');
 
     // Fall back to a full re-render if the DOM doesn't match the current token list
-    // (e.g. after a mode switch or initial render hasn't happened yet).
+    // — either different length, or same length but different token text/order
+    // (can happen after a mode switch where the hidden panel has stale content).
     if (nodes.length !== tokens.length) {
+      this._renderAlgorithmTokens(containerId, tokens, activeIdx);
+      return;
+    }
+    const nodeArray = Array.from(nodes);
+    const identityMismatch = nodeArray.some((n, i) => (n.dataset.token ?? '') !== tokens[i]);
+    if (identityMismatch) {
       this._renderAlgorithmTokens(containerId, tokens, activeIdx);
       return;
     }
@@ -229,18 +237,18 @@ export class UI {
     // Incremental update: only touch the nodes that need to change class.
     if (activeIdx >= tokens.length) {
       // All tokens are now done.
-      nodes.forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+      nodeArray.forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
     } else if (activeIdx < 0) {
       // All tokens reset to idle.
-      nodes.forEach(n => { n.classList.remove('active', 'done'); });
+      nodeArray.forEach(n => { n.classList.remove('active', 'done'); });
     } else {
       // Mark the newly active token.
-      nodes[activeIdx].classList.remove('done');
-      nodes[activeIdx].classList.add('active');
+      nodeArray[activeIdx].classList.remove('done');
+      nodeArray[activeIdx].classList.add('active');
       // Mark the previously active token as done.
       if (activeIdx > 0) {
-        nodes[activeIdx - 1].classList.remove('active');
-        nodes[activeIdx - 1].classList.add('done');
+        nodeArray[activeIdx - 1].classList.remove('active');
+        nodeArray[activeIdx - 1].classList.add('done');
       }
     }
   }
