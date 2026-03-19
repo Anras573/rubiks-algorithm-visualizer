@@ -36,18 +36,21 @@ export const MOVE_DEFS = {
  */
 export function parseMove(token) {
   if (!token) return null;
-  const m = token.trim().match(/^([RLUDFBMESrludfbmes])([w]?)([2']?)([']?)$/);
+  // Accepts standard WCA notation: face letter, optional '2' for double turn,
+  // optional "'" for prime (counter-clockwise). E.g. R, R', R2, R2', U, F2
+  const m = token.trim().match(/^([RLUDFBMESrludfbmes])(2?)('?)$/);
   if (!m) return null;
 
-  const face = m[1].toUpperCase();
-  const modifier = (m[3] + m[4]).replace(/w/g, ''); // strip wide-move marker
+  const face     = m[1].toUpperCase();
+  const isDouble = m[2] === '2';
+  const isPrime  = m[3] === "'";
 
   const base = MOVE_DEFS[face];
   if (!base) return null;
 
   let angle = base.angle;
-  if (modifier.includes("'")) angle = -angle;
-  if (modifier.includes('2')) angle *= 2;
+  if (isPrime)  angle = -angle;
+  if (isDouble) angle *= 2;
 
   return { axis: base.axis, layer: base.layer, angle };
 }

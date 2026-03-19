@@ -21,13 +21,14 @@
   --text-muted:   #555a72;
 
   /* Cube face colours – used for move tokens */
-  --col-R: #1a6fdf;
-  --col-L: #1a9e3f;
-  --col-U: #eeeeee;
-  --col-D: #f0c000;
+  --col-R: #1155cc;
+  --col-L: #00991a;
+  --col-U: #e8e8e8;
+  --col-D: #ffd600;
   --col-F: #cc2200;
-  --col-B: #e87000;
+  --col-B: #ff7700;
   --col-slice: #6b7280;
+  --warning:  #f0c000;
 
   --header-h: 58px;
   --footer-h: 56px;
@@ -634,7 +635,7 @@ input[type="range"]::-moz-range-thumb {
 .status-idle    { color: var(--text-muted); font-size: 13px; }
 .status-running { color: var(--accent-hover); font-size: 13px; font-weight: 600; }
 .status-done    { color: var(--success); font-size: 13px; font-weight: 600; }
-.status-paused  { color: var(--col-D); font-size: 13px; font-weight: 600; }
+.status-paused  { color: var(--warning); font-size: 13px; font-weight: 600; }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }

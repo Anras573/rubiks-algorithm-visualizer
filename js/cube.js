@@ -123,9 +123,9 @@ export class RubiksCubeApp {
     // Clock
     this.clock = new THREE.Clock();
 
-    // Responsive resize
-    const ro = new ResizeObserver(() => this._onResize());
-    ro.observe(this.container);
+    // Responsive resize – store observer so it can be disconnected if needed
+    this._resizeObserver = new ResizeObserver(() => this._onResize());
+    this._resizeObserver.observe(this.container);
   }
 
   _onResize() {
@@ -140,17 +140,20 @@ export class RubiksCubeApp {
 
   // ── Private: Cube geometry ──────────────────────────────────────────────────
   _buildCube() {
-    // Dispose existing cubies
-    for (const c of this.cubies) {
-      c.geometry.dispose();
-      if (Array.isArray(c.material)) {
-        c.material.forEach(m => m.dispose());
+    // Dispose existing cubies.
+    // All cubies share one geometry instance – dispose it only once.
+    if (this.cubies.length > 0) {
+      this.cubies[0].geometry.dispose();
+      for (const c of this.cubies) {
+        if (Array.isArray(c.material)) {
+          c.material.forEach(m => m.dispose());
+        }
+        this.scene.remove(c);
       }
-      this.scene.remove(c);
     }
     this.cubies = [];
 
-    // Re-use a single geometry instance for all 27 cubies
+    // Create one shared geometry instance for all 27 cubies
     const geo = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
 
     for (let x = -1; x <= 1; x++) {
@@ -354,6 +357,15 @@ export class RubiksCubeApp {
   /** Set animation speed (1 = slow … 10 = fast). */
   setSpeed(speed) {
     this.animSpeed = Math.max(1, Math.min(10, speed));
+  }
+
+  /** Disconnect the resize observer and free WebGL resources. */
+  dispose() {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+    this._buildCube(); // disposes all cubie geometry/materials
+    this.renderer.dispose();
   }
 
   pause()        { this.isPaused = true; }

@@ -13,6 +13,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Boot the Three.js cube
   const cubeApp = new RubiksCubeApp(container);
 
-  // Boot the UI (wires all DOM events and callbacks)
-  const ui = new UI(cubeApp); // eslint-disable-line no-unused-vars
+  // Boot the UI (wires all DOM events and callbacks).
+  // Exposed on window for debugging convenience.
+  window.app = { cube: cubeApp, ui: new UI(cubeApp) };
 });
