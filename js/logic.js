@@ -36,12 +36,13 @@ export const MOVE_DEFS = {
  */
 export function parseMove(token) {
   if (!token) return null;
-  // Accepts standard WCA notation: face letter, optional '2' for double turn,
-  // optional "'" for prime (counter-clockwise). E.g. R, R', R2, R2', U, F2
-  const m = token.trim().match(/^([RLUDFBMESrludfbmes])(2?)('?)$/);
+  // Accepts standard WCA notation: uppercase face letter, optional '2' for
+  // double turn, optional "'" for prime (counter-clockwise).
+  // Lowercase wide-move notation (r, u, …) is not supported and returns null.
+  const m = token.trim().match(/^([RLUDFBMES])(2?)('?)$/);
   if (!m) return null;
 
-  const face     = m[1].toUpperCase();
+  const face     = m[1];
   const isDouble = m[2] === '2';
   const isPrime  = m[3] === "'";
 

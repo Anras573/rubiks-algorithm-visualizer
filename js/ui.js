@@ -289,21 +289,40 @@ export class UI {
     if (!input) return;
 
     // Parse each token individually so that algTokens exactly mirrors the
-    // moves the cube will execute (invalid tokens are silently skipped).
-    const rawTokens  = input.split(/\s+/).filter(Boolean);
-    const validPairs = rawTokens.flatMap(t => {
+    // moves the cube will execute.  Collect rejected tokens to warn the user.
+    const rawTokens    = input.split(/\s+/).filter(Boolean);
+    const validPairs   = [];
+    const rejectedToks = [];
+    for (const t of rawTokens) {
       const m = parseMove(t);
-      return m !== null ? [[t, m]] : [];
-    });
+      if (m !== null) {
+        validPairs.push([t, m]);
+      } else {
+        rejectedToks.push(t);
+      }
+    }
+
+    // Surface a warning for any unrecognised tokens.
+    const warningEl = document.getElementById('alg-warning');
+    if (warningEl) {
+      if (rejectedToks.length > 0) {
+        const label = rejectedToks.length > 1 ? 'tokens' : 'token';
+        warningEl.textContent = `⚠ Skipped unrecognised ${label}: ${rejectedToks.join(', ')}`;
+      } else {
+        warningEl.textContent = '';
+      }
+    }
+
     if (validPairs.length === 0) return;
 
     this._prepareForExecution();
-    this.algTokens = validPairs.map(([t]) => t);
-    const moves    = validPairs.map(([, m]) => m);
+    this.algTokens  = validPairs.map(([t]) => t);
+    const moves     = validPairs.map(([, m]) => m);
+    const filteredAlg = this.algTokens.join(' ');
     this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
     this.cube.executeAlgorithm(moves);
     this._setExecuteBtn(true);
-    this._updateStatusRunning(input);
+    this._updateStatusRunning(filteredAlg);
   }
 
   // ── Mode switching ──────────────────────────────────────────────────────────
@@ -392,6 +411,8 @@ export class UI {
     } else {
       this.algTokens = [];
       document.getElementById('custom-alg-display').innerHTML = '';
+      const warningEl = document.getElementById('alg-warning');
+      if (warningEl) warningEl.textContent = '';
     }
     this._setExecuteBtn(false);
     this._updateStatusIdle();
