@@ -213,9 +213,36 @@ export class UI {
     const tokens = this.algTokens;
     if (!tokens || tokens.length === 0) return;
 
-    // Re-render current algorithm display with updated highlight
     const containerId = this.mode === 'tutorial' ? 'algorithm-display' : 'custom-alg-display';
-    this._renderAlgorithmTokens(containerId, tokens, activeIdx);
+    const container   = document.getElementById(containerId);
+    if (!container) return;
+
+    const nodes = container.querySelectorAll('.move-token');
+
+    // Fall back to a full re-render if the DOM doesn't match the current token list
+    // (e.g. after a mode switch or initial render hasn't happened yet).
+    if (nodes.length !== tokens.length) {
+      this._renderAlgorithmTokens(containerId, tokens, activeIdx);
+      return;
+    }
+
+    // Incremental update: only touch the nodes that need to change class.
+    if (activeIdx >= tokens.length) {
+      // All tokens are now done.
+      nodes.forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+    } else if (activeIdx < 0) {
+      // All tokens reset to idle.
+      nodes.forEach(n => { n.classList.remove('active', 'done'); });
+    } else {
+      // Mark the newly active token.
+      nodes[activeIdx].classList.remove('done');
+      nodes[activeIdx].classList.add('active');
+      // Mark the previously active token as done.
+      if (activeIdx > 0) {
+        nodes[activeIdx - 1].classList.remove('active');
+        nodes[activeIdx - 1].classList.add('done');
+      }
+    }
   }
 
   // ── Tutorial step navigation ─────────────────────────────────────────────────
@@ -282,8 +309,12 @@ export class UI {
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
     this.mode = mode;
-    document.getElementById('btn-tutorial').classList.toggle('active', mode === 'tutorial');
-    document.getElementById('btn-practice').classList.toggle('active', mode === 'practice');
+    const tutBtn = document.getElementById('btn-tutorial');
+    const pracBtn = document.getElementById('btn-practice');
+    tutBtn.classList.toggle('active', mode === 'tutorial');
+    tutBtn.setAttribute('aria-pressed', String(mode === 'tutorial'));
+    pracBtn.classList.toggle('active', mode === 'practice');
+    pracBtn.setAttribute('aria-pressed', String(mode === 'practice'));
     document.getElementById('tutorial-panel').style.display = mode === 'tutorial' ? 'flex' : 'none';
     document.getElementById('practice-panel').style.display = mode === 'practice' ? 'flex' : 'none';
 
@@ -355,10 +386,11 @@ export class UI {
   _clearExecutionState() {
     this.isExecuting   = false;
     this.activeMoveIdx = -1;
-    this.algTokens     = TUTORIAL_STEPS[this.stepIndex]?.algorithm.trim().split(/\s+/) ?? [];
     if (this.mode === 'tutorial') {
+      this.algTokens = TUTORIAL_STEPS[this.stepIndex]?.algorithm.trim().split(/\s+/) ?? [];
       this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
     } else {
+      this.algTokens = [];
       document.getElementById('custom-alg-display').innerHTML = '';
     }
     this._setExecuteBtn(false);

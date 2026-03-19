@@ -76,12 +76,11 @@ export function generateScramble(length = 20) {
   let lastAxis = '';
 
   for (let i = 0; i < length; i++) {
-    let face;
-    let tries = 0;
-    do {
-      face = faces[Math.floor(Math.random() * faces.length)];
-      tries++;
-    } while (axisOf[face] === lastAxis && tries < 30);
+    // Only choose from faces whose axis differs from the last move to guarantee
+    // no consecutive same-axis moves (avoids the unreliable try-limit approach).
+    const eligible = faces.filter(f => axisOf[f] !== lastAxis);
+    const pool = eligible.length > 0 ? eligible : faces;
+    const face = pool[Math.floor(Math.random() * pool.length)];
 
     const mod = modifiers[Math.floor(Math.random() * modifiers.length)];
     moves.push(face + mod);
