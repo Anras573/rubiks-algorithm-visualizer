@@ -62,6 +62,10 @@ export class RubiksCubeApp {
     // Used to fire onQueueEmpty exactly once when the queue drains
     this._queueDrained = true;
 
+    // Render-loop state
+    this._rafId    = null;
+    this._disposed = false;
+
     // ── Callbacks set by UI ──────────────────────────────────────────────────
     /** Called when a move begins:  fn(moveIndexInAlg, totalMovesInAlg) */
     this.onMoveStart    = null;
@@ -147,7 +151,9 @@ export class RubiksCubeApp {
         if (Array.isArray(c.material)) {
           c.material.forEach(m => m.dispose());
         }
-        this.scene.remove(c);
+        // Use the actual parent reference: mid-animation a cubie may be
+        // parented under this.pivot rather than directly under the scene.
+        c.parent?.remove(c);
       }
     }
     this.cubies = [];
@@ -255,7 +261,10 @@ export class RubiksCubeApp {
   // ── Private: Render loop ────────────────────────────────────────────────────
   _startLoop() {
     const tick = () => {
-      requestAnimationFrame(tick);
+      // Stop the loop if dispose() has been called
+      if (this._disposed) return;
+
+      this._rafId = requestAnimationFrame(tick);
 
       // Cap delta to avoid huge jumps after tab becomes visible again
       const delta = Math.min(this.clock.getDelta(), 0.1);
@@ -275,7 +284,7 @@ export class RubiksCubeApp {
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
     };
-    tick();
+    this._rafId = requestAnimationFrame(tick);
   }
 
   // ── Private: Advance the current animation by one frame ─────────────────────
@@ -319,9 +328,14 @@ export class RubiksCubeApp {
 
   /**
    * Queue an array of parsed move objects for animated execution.
+   * Any pending (not yet started) moves are discarded so the new algorithm
+   * plays immediately without appending to a stale queue.
    * Resets the per-algorithm move counter so the UI can highlight each move.
    */
   executeAlgorithm(moves) {
+    // Discard any queued-but-not-yet-started moves. The currently animating
+    // move (if any) is allowed to finish naturally before the new queue begins.
+    this.animQueue = [];
     this._algMoveIndex = 0;
     this._algMoveTotal = moves.length;
     this._queueDrained = false;
@@ -365,6 +379,20 @@ export class RubiksCubeApp {
 
   /** Disconnect the resize observer and free WebGL resources. */
   dispose() {
+    // Signal the render loop to stop before the next frame
+    this._disposed = true;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    // Finish / cancel any in-progress animation so cubies are re-parented back
+    // to the scene before we dispose them
+    this.clearQueue();
+    // Belt-and-suspenders: remove pivot group if it somehow still exists
+    if (this.pivot) {
+      this.scene.remove(this.pivot);
+      this.pivot = null;
+    }
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
     }

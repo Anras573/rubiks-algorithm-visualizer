@@ -20,14 +20,14 @@
   --text-secondary: #8a8fa8;
   --text-muted:   #555a72;
 
-  /* Cube face colours – used for move tokens */
-  --col-R: #1155cc;
-  --col-L: #00991a;
-  --col-U: #e8e8e8;
-  --col-D: #ffd600;
-  --col-F: #cc2200;
-  --col-B: #ff7700;
-  --col-slice: #6b7280;
+  /* Cube face colours – background and foreground (text) for move tokens */
+  --col-R: #1155cc;  --col-R-fg: #fff;
+  --col-L: #00991a;  --col-L-fg: #fff;
+  --col-U: #e8e8e8;  --col-U-fg: #222;
+  --col-D: #ffd600;  --col-D-fg: #222;
+  --col-F: #cc2200;  --col-F-fg: #fff;
+  --col-B: #ff7700;  --col-B-fg: #fff;
+  --col-slice: #6b7280;  --col-slice-fg: #fff;
   --warning:  #f0c000;
 
   --header-h: 58px;

@@ -4,26 +4,24 @@
  */
 
 import {
+  parseMove,
   parseAlgorithm,
   generateScramble,
   TUTORIAL_STEPS,
   QUICK_ALGORITHMS,
 } from './logic.js';
 
-// ── Move-token colour map (matches CSS variables) ─────────────────────────────
-const TOKEN_BG = {
-  R: '#1155cc', L: '#00991a', U: '#e8e8e8',
-  D: '#ffd600', F: '#cc2200', B: '#ff7700',
-  M: '#6b7280', E: '#6b7280', S: '#6b7280',
-};
-const TOKEN_FG = {
-  R: '#fff', L: '#fff', U: '#222',
-  D: '#222', F: '#fff', B: '#fff',
-  M: '#fff', E: '#fff', S: '#fff',
-};
+// ── Move-token colour helpers (delegate to CSS variables – single source of truth) ─
+const FACE_LETTERS = new Set(['R', 'L', 'U', 'D', 'F', 'B']);
 
-function tokenBg(token) { return TOKEN_BG[token[0].toUpperCase()] ?? '#6b7280'; }
-function tokenFg(token) { return TOKEN_FG[token[0].toUpperCase()] ?? '#fff'; }
+function tokenBg(token) {
+  const face = token[0].toUpperCase();
+  return FACE_LETTERS.has(face) ? `var(--col-${face})` : 'var(--col-slice)';
+}
+function tokenFg(token) {
+  const face = token[0].toUpperCase();
+  return FACE_LETTERS.has(face) ? `var(--col-${face}-fg)` : 'var(--col-slice-fg)';
+}
 
 // ── HTML escape helper (prevents XSS when rendering user-supplied tokens) ─────
 function escapeHtml(str) {
@@ -262,11 +260,19 @@ export class UI {
   _executeCustom() {
     const input = document.getElementById('custom-algorithm').value.trim();
     if (!input) return;
-    const moves = parseAlgorithm(input);
-    if (moves.length === 0) return;
+
+    // Parse each token individually so that algTokens exactly mirrors the
+    // moves the cube will execute (invalid tokens are silently skipped).
+    const rawTokens  = input.split(/\s+/).filter(Boolean);
+    const validPairs = rawTokens.flatMap(t => {
+      const m = parseMove(t);
+      return m !== null ? [[t, m]] : [];
+    });
+    if (validPairs.length === 0) return;
 
     this._prepareForExecution();
-    this.algTokens = input.split(/\s+/).filter(Boolean);
+    this.algTokens = validPairs.map(([t]) => t);
+    const moves    = validPairs.map(([, m]) => m);
     this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
     this.cube.executeAlgorithm(moves);
     this._setExecuteBtn(true);

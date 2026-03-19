@@ -9,6 +9,10 @@ import { UI } from './ui.js';
 // Wait for the DOM to be ready before mounting
 window.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('cube-container');
+  if (!container) {
+    console.error('RubiksCubeApp: #cube-container element not found in the document.');
+    return;
+  }
 
   // Boot the Three.js cube
   const cubeApp = new RubiksCubeApp(container);
