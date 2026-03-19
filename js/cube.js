@@ -328,15 +328,16 @@ export class RubiksCubeApp {
 
   /**
    * Queue an array of parsed move objects for animated execution.
-   * Any in-progress move is snapped to completion first (via clearQueue) so
-   * that onMoveComplete fires with the old algorithm's index before the counters
+   * Any in-progress move is snapped to completion first (via _clearQueueSilently)
+   * so that onMoveComplete fires with the old algorithm's index before counters
    * are reset — preventing a -1 index from reaching UI callbacks.
+   * An empty move array is treated as a no-op (no state changes, no callbacks).
    */
   executeAlgorithm(moves) {
-    // Snap any currently animating move to its final position and discard all
-    // pending moves. This ensures _algMoveIndex is only reset after the last
-    // in-flight onMoveComplete has already fired with the old (correct) index.
-    this.clearQueue();
+    if (moves.length === 0) return;
+    // Use the silent variant so that swapping to a new algorithm does not
+    // spuriously emit onQueueEmpty for the algorithm being replaced.
+    this._clearQueueSilently();
     this._algMoveIndex = 0;
     this._algMoveTotal = moves.length;
     this._queueDrained = false;
@@ -345,8 +346,19 @@ export class RubiksCubeApp {
 
   /**
    * Stop and clear the animation queue.
+   * Fires onQueueEmpty when the queue/animation was actually running.
    */
   clearQueue() {
+    const wasRunning = this.animQueue.length > 0 || (this.isAnimating && this.currentAnim);
+    this._clearQueueSilently();
+    if (wasRunning && this.onQueueEmpty) this.onQueueEmpty();
+  }
+
+  /**
+   * Internal: clear queue + snap animation without firing onQueueEmpty.
+   * Used by executeAlgorithm (which is about to start a new run) and dispose.
+   */
+  _clearQueueSilently() {
     this.animQueue = [];
     if (this.isAnimating && this.currentAnim) {
       this._finishCurrentMove();
@@ -387,8 +399,9 @@ export class RubiksCubeApp {
       this._rafId = null;
     }
     // Finish / cancel any in-progress animation so cubies are re-parented back
-    // to the scene before we dispose them
-    this.clearQueue();
+    // to the scene before we dispose them. Use the silent variant — we do not
+    // want to fire onQueueEmpty callbacks during teardown.
+    this._clearQueueSilently();
     // Belt-and-suspenders: remove pivot group if it somehow still exists
     if (this.pivot) {
       this.scene.remove(this.pivot);

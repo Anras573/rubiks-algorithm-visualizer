@@ -337,8 +337,10 @@ export class UI {
     document.getElementById('tutorial-panel').style.display = mode === 'tutorial' ? 'flex' : 'none';
     document.getElementById('practice-panel').style.display = mode === 'practice' ? 'flex' : 'none';
 
-    // Re-render token highlights into the now-visible panel when mid-execution
-    if (this.algTokens.length > 0) {
+    // Re-render token highlights into the now-visible panel only when
+    // mid-execution — avoids copying tutorial tokens into #custom-alg-display
+    // (or practice tokens into #algorithm-display) while idle.
+    if (this.isExecuting) {
       this._updateTokenHighlight(this.activeMoveIdx);
     }
   }
@@ -406,7 +408,8 @@ export class UI {
     this.isExecuting   = false;
     this.activeMoveIdx = -1;
     if (this.mode === 'tutorial') {
-      this.algTokens = TUTORIAL_STEPS[this.stepIndex]?.algorithm.trim().split(/\s+/) ?? [];
+      const alg = TUTORIAL_STEPS[this.stepIndex]?.algorithm;
+      this.algTokens = alg ? alg.trim().split(/\s+/) : [];
       this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
     } else {
       this.algTokens = [];
