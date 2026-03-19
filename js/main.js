@@ -14,6 +14,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const cubeApp = new RubiksCubeApp(container);
 
   // Boot the UI (wires all DOM events and callbacks).
-  // Exposed on window for debugging convenience.
-  window.app = { cube: cubeApp, ui: new UI(cubeApp) };
+  const ui = new UI(cubeApp);
+  // Expose on window for debugging only on local dev servers.
+  if (['localhost', '127.0.0.1', ''].includes(location.hostname)) {
+    window.app = { cube: cubeApp, ui };
+  }
 });

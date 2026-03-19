@@ -75,7 +75,8 @@ export class UI {
     this.cube.onQueueEmpty = () => {
       this.isExecuting   = false;
       this.activeMoveIdx = -1;
-      this._updateTokenHighlight(-1);
+      // Mark all tokens as done so the user can see the completed sequence
+      this._updateTokenHighlight(this.algTokens.length);
       this._setExecuteBtn(false);
       this._updateStatusDone();
     };
@@ -279,6 +280,11 @@ export class UI {
     document.getElementById('btn-practice').classList.toggle('active', mode === 'practice');
     document.getElementById('tutorial-panel').style.display = mode === 'tutorial' ? 'flex' : 'none';
     document.getElementById('practice-panel').style.display = mode === 'practice' ? 'flex' : 'none';
+
+    // Re-render token highlights into the now-visible panel when mid-execution
+    if (this.algTokens.length > 0) {
+      this._updateTokenHighlight(this.activeMoveIdx);
+    }
   }
 
   // ── Execute button state ────────────────────────────────────────────────────
@@ -305,10 +311,14 @@ export class UI {
 
   // ── Scramble banner ──────────────────────────────────────────────────────────
   _showBanner(scramble) {
-    const el = document.getElementById('scramble-banner');
-    document.getElementById('scramble-text').innerHTML =
-      `<strong>Scramble:</strong> ${scramble}`;
-    el.style.display = 'block';
+    const banner = document.getElementById('scramble-banner');
+    const textEl = document.getElementById('scramble-text');
+    textEl.textContent = '';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Scramble: ';
+    textEl.appendChild(strong);
+    textEl.appendChild(document.createTextNode(scramble));
+    banner.style.display = 'block';
   }
   _hideBanner() {
     document.getElementById('scramble-banner').style.display = 'none';
