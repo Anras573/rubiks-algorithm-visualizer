@@ -328,14 +328,15 @@ export class RubiksCubeApp {
 
   /**
    * Queue an array of parsed move objects for animated execution.
-   * Any pending (not yet started) moves are discarded so the new algorithm
-   * plays immediately without appending to a stale queue.
-   * Resets the per-algorithm move counter so the UI can highlight each move.
+   * Any in-progress move is snapped to completion first (via clearQueue) so
+   * that onMoveComplete fires with the old algorithm's index before the counters
+   * are reset — preventing a -1 index from reaching UI callbacks.
    */
   executeAlgorithm(moves) {
-    // Discard any queued-but-not-yet-started moves. The currently animating
-    // move (if any) is allowed to finish naturally before the new queue begins.
-    this.animQueue = [];
+    // Snap any currently animating move to its final position and discard all
+    // pending moves. This ensures _algMoveIndex is only reset after the last
+    // in-flight onMoveComplete has already fired with the old (correct) index.
+    this.clearQueue();
     this._algMoveIndex = 0;
     this._algMoveTotal = moves.length;
     this._queueDrained = false;

@@ -127,7 +127,7 @@ export class UI {
       const paused = this.cube.togglePause();
       document.getElementById('btn-play-pause').textContent = paused ? '▶ Play' : '⏸ Pause';
       if (paused) {
-        this._updateStatus('status-paused', '⏸ Paused');
+        this._updateStatus('status-paused', '⏸ Paused', '');
       } else if (this.isExecuting) {
         this._updateStatusRunning();
       } else {
@@ -306,14 +306,15 @@ export class UI {
   }
 
   // ── Status display ──────────────────────────────────────────────────────────
-  _updateStatus(cls, text) {
+  _updateStatus(cls, text, title = '') {
     const el = document.getElementById('status-display');
-    el.className = cls;
+    el.className   = cls;
     el.textContent = text;
+    el.title       = title;
   }
-  _updateStatusIdle()              { this._updateStatus('status-idle',    'Ready'); }
-  _updateStatusRunning(alg = '')   { this._updateStatus('status-running', alg ? `▶ ${alg}` : '▶ Running…'); }
-  _updateStatusDone()              { this._updateStatus('status-done',    '✓ Done'); }
+  _updateStatusIdle()            { this._updateStatus('status-idle',    'Ready', ''); }
+  _updateStatusRunning(alg = '') { this._updateStatus('status-running', alg ? `▶ ${alg}` : '▶ Running…', alg); }
+  _updateStatusDone()            { this._updateStatus('status-done',    '✓ Done', ''); }
 
   // ── Scramble banner ──────────────────────────────────────────────────────────
   _showBanner(scramble) {

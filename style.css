@@ -632,6 +632,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Status display */
+#status-display {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .status-idle    { color: var(--text-muted); font-size: 13px; }
 .status-running { color: var(--accent-hover); font-size: 13px; font-weight: 600; }
 .status-done    { color: var(--success); font-size: 13px; font-weight: 600; }
