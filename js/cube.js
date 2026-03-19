@@ -138,11 +138,10 @@ export class RubiksCubeApp {
     }
   }
 
-  // ── Private: Cube geometry ──────────────────────────────────────────────────
-  _buildCube() {
-    // Dispose existing cubies.
-    // All cubies share one geometry instance – dispose it only once.
+  // ── Private: Dispose all cubie GPU resources (without rebuilding) ─────────────
+  _disposeCubies() {
     if (this.cubies.length > 0) {
+      // All cubies share one geometry instance – dispose it only once
       this.cubies[0].geometry.dispose();
       for (const c of this.cubies) {
         if (Array.isArray(c.material)) {
@@ -152,6 +151,11 @@ export class RubiksCubeApp {
       }
     }
     this.cubies = [];
+  }
+
+  // ── Private: Cube geometry ──────────────────────────────────────────────────
+  _buildCube() {
+    this._disposeCubies();
 
     // Create one shared geometry instance for all 27 cubies
     const geo = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
@@ -364,8 +368,12 @@ export class RubiksCubeApp {
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
     }
-    this._buildCube(); // disposes all cubie geometry/materials
+    this._disposeCubies();
+    this.controls.dispose();
     this.renderer.dispose();
+    if (this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
   }
 
   pause()        { this.isPaused = true; }

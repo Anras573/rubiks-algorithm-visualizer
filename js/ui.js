@@ -25,13 +25,23 @@ const TOKEN_FG = {
 function tokenBg(token) { return TOKEN_BG[token[0].toUpperCase()] ?? '#6b7280'; }
 function tokenFg(token) { return TOKEN_FG[token[0].toUpperCase()] ?? '#fff'; }
 
+// ── HTML escape helper (prevents XSS when rendering user-supplied tokens) ─────
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function makeTokenHTML(token, index, state /* 'idle'|'active'|'done' */ = 'idle') {
   const bg  = tokenBg(token);
   const fg  = tokenFg(token);
   const cls = state === 'active' ? ' active' : state === 'done' ? ' done' : '';
   return `<span class="move-token${cls}"
                 data-idx="${index}"
-                style="background:${bg};color:${fg};">${token}</span>`;
+                style="background:${bg};color:${fg};">${escapeHtml(token)}</span>`;
 }
 
 // ── UI class ──────────────────────────────────────────────────────────────────
@@ -104,9 +114,8 @@ export class UI {
         const step  = TUTORIAL_STEPS[this.stepIndex];
         const moves = parseAlgorithm(step.algorithm);
         if (moves.length === 0) return;
-        this.algTokens     = step.algorithm.trim().split(/\s+/);
-        this.isExecuting   = true;
-        this.activeMoveIdx = 0;
+        this._prepareForExecution();
+        this.algTokens = step.algorithm.trim().split(/\s+/);
         this._renderAlgorithmTokens('algorithm-display', this.algTokens, 0);
         this.cube.executeAlgorithm(moves);
         this._setExecuteBtn(true);
@@ -122,6 +131,9 @@ export class UI {
         this._updateStatus('status-paused', '⏸ Paused');
       } else if (this.isExecuting) {
         this._updateStatusRunning();
+      } else {
+        // Unpausing when no execution is in progress → restore idle state
+        this._updateStatusIdle();
       }
     });
 
@@ -231,13 +243,13 @@ export class UI {
 
     container.querySelectorAll('.quick-alg-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const alg    = btn.dataset.alg;
-        const moves  = parseAlgorithm(alg);
+        const alg   = btn.dataset.alg;
+        const moves = parseAlgorithm(alg);
         if (moves.length === 0) return;
 
+        this._prepareForExecution();
         document.getElementById('custom-algorithm').value = alg;
-        this.algTokens   = alg.trim().split(/\s+/);
-        this.isExecuting = true;
+        this.algTokens = alg.trim().split(/\s+/);
         this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
         this.cube.executeAlgorithm(moves);
         this._setExecuteBtn(true);
@@ -252,9 +264,8 @@ export class UI {
     const moves = parseAlgorithm(input);
     if (moves.length === 0) return;
 
-    this.algTokens   = input.split(/\s+/).filter(Boolean);
-    this.isExecuting = true;
-    this.activeMoveIdx = 0;
+    this._prepareForExecution();
+    this.algTokens = input.split(/\s+/).filter(Boolean);
     this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
     this.cube.executeAlgorithm(moves);
     this._setExecuteBtn(true);
@@ -304,6 +315,26 @@ export class UI {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Called before starting any new algorithm execution.
+   * Stops any in-progress run, resets UI execution state, and auto-resumes
+   * the animation loop if the cube is currently paused.
+   */
+  _prepareForExecution() {
+    // Reset move index before clearing so any in-flight onMoveComplete
+    // callback sees index -1 and does not try to highlight stale tokens
+    this.activeMoveIdx = -1;
+    this.cube.clearQueue();
+    this.isExecuting   = true;
+    this.activeMoveIdx = 0;
+    // Auto-resume if paused so the animation plays immediately
+    if (this.cube.isPaused) {
+      this.cube.resume();
+      document.getElementById('btn-play-pause').textContent = '⏸ Pause';
+    }
+  }
+
   _clearExecutionState() {
     this.isExecuting   = false;
     this.activeMoveIdx = -1;
