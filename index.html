@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rubik's Algorithm Visualizer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+
+    <header id="header">
+      <div class="header-left">
+        <span class="logo">🎲</span>
+        <h1>Rubik's Algorithm Visualizer</h1>
+      </div>
+      <div class="header-center">
+        <button id="btn-tutorial" class="mode-btn active" aria-pressed="true">📚 Tutorial</button>
+        <button id="btn-practice" class="mode-btn" aria-pressed="false">🎯 Practice</button>
+      </div>
+      <div class="header-right">
+        <button id="btn-reset" class="icon-btn" title="Reset to solved state">↺ Reset</button>
+        <button id="btn-scramble" class="icon-btn" title="Apply random scramble">🔀 Scramble</button>
+      </div>
+    </header>
+
+    <main id="main">
+
+      <div id="cube-container">
+        <div id="scramble-banner" style="display:none;">
+          <span id="scramble-text"></span>
+        </div>
+      </div>
+
+      <aside id="sidebar">
+
+        <!-- ── Tutorial Panel ── -->
+        <div id="tutorial-panel">
+
+          <div id="progress-track">
+            <div id="progress-fill"></div>
+          </div>
+
+          <div id="stage-indicators"></div>
+
+          <div id="step-card">
+            <div id="step-header">
+              <span id="step-badge">Step 1/6</span>
+              <span id="step-stage-label" class="stage-tag"></span>
+            </div>
+            <h2 id="step-title"></h2>
+            <p id="step-description"></p>
+
+            <div class="alg-section">
+              <div class="alg-label">Algorithm</div>
+              <div id="algorithm-display"></div>
+            </div>
+
+            <p id="step-tip" class="tip-text"></p>
+
+            <div id="step-nav">
+              <button id="btn-prev-step" class="nav-step-btn">← Prev</button>
+              <button id="btn-execute" class="execute-btn">▶ Execute</button>
+              <button id="btn-next-step" class="nav-step-btn">Next →</button>
+            </div>
+          </div>
+
+        </div><!-- end tutorial-panel -->
+
+        <!-- ── Practice Panel ── -->
+        <div id="practice-panel" style="display:none;">
+
+          <h2 class="panel-heading">Practice Mode</h2>
+
+          <div class="practice-section">
+            <label class="practice-label" for="custom-algorithm">Custom Algorithm</label>
+            <div class="input-row">
+              <input type="text" id="custom-algorithm"
+                     placeholder="e.g. R U R' U'" autocomplete="off" spellcheck="false" />
+              <button id="btn-execute-custom" class="execute-btn" aria-label="Execute algorithm">▶</button>
+            </div>
+            <div id="custom-alg-display" class="alg-display-small"></div>
+            <div id="alg-warning" class="alg-warning" aria-live="polite"></div>
+          </div>
+
+          <div class="practice-section">
+            <label class="practice-label">Quick Algorithms</label>
+            <div id="quick-algs"></div>
+          </div>
+
+        </div><!-- end practice-panel -->
+
+      </aside><!-- end sidebar -->
+
+    </main>
+
+    <!-- ── Controls Bar ── -->
+    <footer id="controls-bar">
+      <div class="ctrl-group">
+        <button id="btn-play-pause" class="ctrl-btn">⏸ Pause</button>
+        <button id="btn-stop"       class="ctrl-btn">⏹ Stop</button>
+      </div>
+      <div class="ctrl-group ctrl-center">
+        <label for="speed-slider" class="ctrl-label">Speed</label>
+        <input type="range" id="speed-slider" min="1" max="10" value="5" />
+        <span id="speed-label" class="ctrl-value">5×</span>
+      </div>
+      <div class="ctrl-group">
+        <span id="status-display" class="status-idle">Ready</span>
+      </div>
+    </footer>
+
+  </div><!-- end app -->
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
