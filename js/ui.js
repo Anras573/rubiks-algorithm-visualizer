@@ -426,7 +426,15 @@ export class UI {
       if (warningEl) warningEl.textContent = '';
     }
     this._setExecuteBtn(false);
-    this._updateStatusIdle();
+    const playPauseBtn = document.getElementById('btn-play-pause');
+    if (this.cube.isPaused) {
+      // Keep status consistent with paused state and ensure button label matches
+      if (playPauseBtn) {
+        playPauseBtn.textContent = '▶ Play';
+      }
+    } else {
+      this._updateStatusIdle();
+    }
   }
 
   _on(id, event, handler) {
