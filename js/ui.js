@@ -78,6 +78,10 @@ export class UI {
       this._updateTokenHighlight(this.algTokens.length);
       this._setExecuteBtn(false);
       this._updateStatusDone();
+      // Re-apply the tutorial step's highlight now that execution has ended or been stopped
+      if (this.mode === 'tutorial') {
+        this._applyTutorialHighlight();
+      }
     };
   }
 
@@ -183,6 +187,8 @@ export class UI {
     // Navigation buttons
     document.getElementById('btn-prev-step').disabled = this.stepIndex === 0;
     document.getElementById('btn-next-step').disabled = this.stepIndex === total - 1;
+
+    this._applyTutorialHighlight();
   }
 
   _renderStageIndicators() {
@@ -348,8 +354,14 @@ export class UI {
 
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
-    if (mode !== 'practice') {
-      this.cube.clearHighlight();
+    if (mode === this.mode) return;
+    if (!this.isExecuting) {
+      if (mode === 'tutorial') {
+        const step = TUTORIAL_STEPS[this.stepIndex];
+        this.cube.highlightPieces(step.pieces || []);
+      } else {
+        this.cube.clearHighlight();
+      }
     }
     this.mode = mode;
     const tutBtn = document.getElementById('btn-tutorial');
@@ -435,6 +447,9 @@ export class UI {
       const alg = TUTORIAL_STEPS[this.stepIndex]?.algorithm;
       this.algTokens = alg ? alg.trim().split(/\s+/) : [];
       this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
+      // Re-apply the tutorial highlight when execution is explicitly cleared
+      // (stop/reset/scramble). Normal queue completion is handled in onQueueEmpty.
+      this._applyTutorialHighlight();
     } else {
       this.algTokens = [];
       document.getElementById('custom-alg-display').innerHTML = '';
@@ -451,6 +466,11 @@ export class UI {
     } else {
       this._updateStatusIdle();
     }
+  }
+
+  _applyTutorialHighlight() {
+    const step = TUTORIAL_STEPS[this.stepIndex];
+    this.cube.highlightPieces(step?.pieces || []);
   }
 
   _on(id, event, handler) {
