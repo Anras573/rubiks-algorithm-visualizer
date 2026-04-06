@@ -184,8 +184,7 @@ export class UI {
     document.getElementById('btn-prev-step').disabled = this.stepIndex === 0;
     document.getElementById('btn-next-step').disabled = this.stepIndex === total - 1;
 
-    // Highlight the pieces relevant to this step
-    this.cube.highlightPieces(step.pieces || []);
+    this._applyTutorialHighlight();
   }
 
   _renderStageIndicators() {
@@ -443,6 +442,8 @@ export class UI {
       const alg = TUTORIAL_STEPS[this.stepIndex]?.algorithm;
       this.algTokens = alg ? alg.trim().split(/\s+/) : [];
       this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
+      // Re-apply highlight after execution ends, is stopped, or cube is reset/scrambled
+      this._applyTutorialHighlight();
     } else {
       this.algTokens = [];
       document.getElementById('custom-alg-display').innerHTML = '';
@@ -459,6 +460,11 @@ export class UI {
     } else {
       this._updateStatusIdle();
     }
+  }
+
+  _applyTutorialHighlight() {
+    const step = TUTORIAL_STEPS[this.stepIndex];
+    this.cube.highlightPieces(step?.pieces || []);
   }
 
   _on(id, event, handler) {
