@@ -354,6 +354,7 @@ export class UI {
 
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
+    if (mode === this.mode) return;
     if (!this.isExecuting) {
       if (mode === 'tutorial') {
         const step = TUTORIAL_STEPS[this.stepIndex];
