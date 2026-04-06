@@ -352,9 +352,11 @@ export class UI {
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
     if (mode === 'tutorial') {
-      const step = TUTORIAL_STEPS[this.stepIndex];
-      this.cube.highlightPieces(step.pieces || []);
-    } else if (mode !== 'practice') {
+      if (!this.isExecuting) {
+        const step = TUTORIAL_STEPS[this.stepIndex];
+        this.cube.highlightPieces(step.pieces || []);
+      }
+    } else if (mode !== 'practice' && !this.isExecuting) {
       this.cube.clearHighlight();
     }
     this.mode = mode;
