@@ -458,13 +458,30 @@ export class RubiksCubeApp {
    */
   highlightPieces(positions) {
     this.clearHighlight();
-    if (!positions || positions.length === 0) return;
+    if (!Array.isArray(positions) || positions.length === 0) return;
+
+    const validPositions = positions
+      .filter(p =>
+        p &&
+        typeof p === 'object' &&
+        Number.isFinite(p.x) &&
+        Number.isFinite(p.y) &&
+        Number.isFinite(p.z)
+      )
+      .map(p => ({
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        z: Math.round(p.z),
+      }));
+
+    if (validPositions.length === 0) return;
+
     this._highlightTime = 0;
     for (const cubie of this.cubies) {
       const cx = Math.round(cubie.position.x);
       const cy = Math.round(cubie.position.y);
       const cz = Math.round(cubie.position.z);
-      if (positions.some(p => p.x === cx && p.y === cy && p.z === cz)) {
+      if (validPositions.some(p => p.x === cx && p.y === cy && p.z === cz)) {
         if (Array.isArray(cubie.material)) {
           cubie.material.forEach(m => {
             m.emissive.setHex(0x00ddff);

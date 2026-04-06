@@ -281,11 +281,19 @@ export class UI {
         const moves = parseAlgorithm(alg);
         if (moves.length === 0) return;
 
-        // Highlight the target piece(s) for this algorithm on the 3-D cube
-        const pieces = btn.dataset.pieces ? JSON.parse(btn.dataset.pieces) : [];
-        this.cube.highlightPieces(pieces);
-
         this._prepareForExecution();
+
+        // Highlight the target piece(s) for this algorithm on the 3-D cube
+        // after any in-progress move has been snapped to a stable state.
+        let pieces = [];
+        if (btn.dataset.pieces) {
+          try {
+            pieces = JSON.parse(btn.dataset.pieces);
+          } catch {
+            pieces = [];
+          }
+        }
+        this.cube.highlightPieces(pieces);
         document.getElementById('custom-algorithm').value = alg;
         this.algTokens = alg.trim().split(/\s+/);
         this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
