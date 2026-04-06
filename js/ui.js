@@ -78,7 +78,7 @@ export class UI {
       this._updateTokenHighlight(this.algTokens.length);
       this._setExecuteBtn(false);
       this._updateStatusDone();
-      // Re-apply the tutorial step's highlight now that execution has completed
+      // Re-apply the tutorial step's highlight now that execution has ended or been stopped
       if (this.mode === 'tutorial') {
         this._applyTutorialHighlight();
       }
