@@ -78,6 +78,10 @@ export class UI {
       this._updateTokenHighlight(this.algTokens.length);
       this._setExecuteBtn(false);
       this._updateStatusDone();
+      // Re-apply the tutorial step's highlight now that execution has completed
+      if (this.mode === 'tutorial') {
+        this._applyTutorialHighlight();
+      }
     };
   }
 
@@ -350,13 +354,13 @@ export class UI {
 
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
-    if (mode === 'tutorial') {
-      if (!this.isExecuting) {
+    if (!this.isExecuting) {
+      if (mode === 'tutorial') {
         const step = TUTORIAL_STEPS[this.stepIndex];
         this.cube.highlightPieces(step.pieces || []);
+      } else {
+        this.cube.clearHighlight();
       }
-    } else if (mode !== 'practice' && !this.isExecuting) {
-      this.cube.clearHighlight();
     }
     this.mode = mode;
     const tutBtn = document.getElementById('btn-tutorial');
@@ -442,7 +446,8 @@ export class UI {
       const alg = TUTORIAL_STEPS[this.stepIndex]?.algorithm;
       this.algTokens = alg ? alg.trim().split(/\s+/) : [];
       this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
-      // Re-apply highlight after execution ends, is stopped, or cube is reset/scrambled
+      // Re-apply the tutorial highlight when execution is explicitly cleared
+      // (stop/reset/scramble). Normal queue completion is handled in onQueueEmpty.
       this._applyTutorialHighlight();
     } else {
       this.algTokens = [];
