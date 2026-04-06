@@ -295,6 +295,8 @@ export class RubiksCubeApp {
         for (const c of this._highlightedCubies) {
           if (Array.isArray(c.material)) {
             c.material.forEach(m => { m.emissiveIntensity = intensity; });
+          } else if (c.material) {
+            c.material.emissiveIntensity = intensity;
           }
         }
       }
@@ -468,6 +470,9 @@ export class RubiksCubeApp {
             m.emissive.setHex(0x00ddff);
             m.emissiveIntensity = 0.4;
           });
+        } else if (cubie.material) {
+          cubie.material.emissive.setHex(0x00ddff);
+          cubie.material.emissiveIntensity = 0.4;
         }
         this._highlightedCubies.push(cubie);
       }
@@ -484,6 +489,9 @@ export class RubiksCubeApp {
           m.emissive.setHex(0x000000);
           m.emissiveIntensity = 0;
         });
+      } else if (cubie.material) {
+        cubie.material.emissive.setHex(0x000000);
+        cubie.material.emissiveIntensity = 0;
       }
     }
     this._highlightedCubies = [];
