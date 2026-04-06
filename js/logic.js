@@ -92,6 +92,9 @@ export function generateScramble(length = 20) {
 }
 
 // ── Tutorial steps ───────────────────────────────────────────────────────────
+// pieces: cubie coordinates {x,y,z} to highlight for each step.
+//   Cube coordinate system: x=1 Right, x=-1 Left, y=1 Up, y=-1 Down,
+//                           z=1 Front, z=-1 Back.
 export const TUTORIAL_STEPS = [
   {
     id: 1,
@@ -104,6 +107,8 @@ export const TUTORIAL_STEPS = [
     tip: "💡 Hold the cube with white on top. Locate white edge pieces and bring " +
          "them up one by one to form a '+' shape while matching the side centres.",
     color: '#ffffff',
+    // The four top-layer edge positions that form the white cross (UF, UR, UB, UL).
+    pieces: [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }, { x: 0, y: 1, z: -1 }, { x: -1, y: 1, z: 0 }],
   },
   {
     id: 2,
@@ -116,6 +121,8 @@ export const TUTORIAL_STEPS = [
     tip: "💡 This is the Sexy Move. Position the target corner at bottom-right-front, " +
          "then repeat R U R' U' (up to 5 times) until it slots in correctly.",
     color: '#ffffff',
+    // The four top-layer corner positions (UFR, UFL, UBR, UBL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 }],
   },
   {
     id: 3,
@@ -127,6 +134,8 @@ export const TUTORIAL_STEPS = [
     algorithm: "U R U' R' U' F' U F",
     tip: "💡 For the left slot, use the mirror: U' L' U L U F U' F'",
     color: '#ffa500',
+    // The four middle-layer edge positions (FR, FL, BR, BL).
+    pieces: [{ x: 1, y: 0, z: 1 }, { x: -1, y: 0, z: 1 }, { x: 1, y: 0, z: -1 }, { x: -1, y: 0, z: -1 }],
   },
   {
     id: 4,
@@ -139,6 +148,8 @@ export const TUTORIAL_STEPS = [
     tip: "💡 Repeat this algorithm while checking the top face. " +
          "Depending on your starting case (dot, L-shape, or bar) you may need 1–3 applications.",
     color: '#ffff00',
+    // The four top-layer edge positions that form the yellow cross (UF, UR, UB, UL).
+    pieces: [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }, { x: 0, y: 1, z: -1 }, { x: -1, y: 1, z: 0 }],
   },
   {
     id: 5,
@@ -151,6 +162,8 @@ export const TUTORIAL_STEPS = [
     tip: "💡 After each Sune, check the top face and rotate (U turn) if needed. " +
          "Apply again until all yellows face up.",
     color: '#ffff00',
+    // All four top-layer corners (UFR, UFL, UBR, UBL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 }],
   },
   {
     id: 6,
@@ -163,6 +176,8 @@ export const TUTORIAL_STEPS = [
     tip: "💡 Align one side so it matches its centre colour, then execute U-Perm. " +
          "For corners use T-Perm or A-Perm as needed.",
     color: '#ffff00',
+    // The three top-layer edges cycled by U-Perm (UF, UR, UL).
+    pieces: [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }, { x: -1, y: 1, z: 0 }],
   },
 ];
 

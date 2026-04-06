@@ -183,6 +183,9 @@ export class UI {
     // Navigation buttons
     document.getElementById('btn-prev-step').disabled = this.stepIndex === 0;
     document.getElementById('btn-next-step').disabled = this.stepIndex === total - 1;
+
+    // Highlight the pieces relevant to this step
+    this.cube.highlightPieces(step.pieces || []);
   }
 
   _renderStageIndicators() {
@@ -348,7 +351,10 @@ export class UI {
 
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
-    if (mode !== 'practice') {
+    if (mode === 'tutorial') {
+      const step = TUTORIAL_STEPS[this.stepIndex];
+      this.cube.highlightPieces(step.pieces || []);
+    } else if (mode !== 'practice') {
       this.cube.clearHighlight();
     }
     this.mode = mode;
