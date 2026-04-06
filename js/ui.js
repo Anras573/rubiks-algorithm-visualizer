@@ -269,7 +269,7 @@ export class UI {
   _renderQuickAlgs() {
     const container = document.getElementById('quick-algs');
     container.innerHTML = QUICK_ALGORITHMS.map(qa => `
-      <button class="quick-alg-btn" data-alg="${qa.alg}">
+      <button class="quick-alg-btn" data-alg="${qa.alg}" data-pieces="${escapeHtml(JSON.stringify(qa.pieces || []))}">
         <span class="quick-alg-name">${qa.name}</span>
         <span class="quick-alg-seq">${qa.alg}</span>
       </button>`
@@ -282,6 +282,18 @@ export class UI {
         if (moves.length === 0) return;
 
         this._prepareForExecution();
+
+        // Highlight the target piece(s) for this algorithm on the 3-D cube
+        // after any in-progress move has been snapped to a stable state.
+        let pieces = [];
+        if (btn.dataset.pieces) {
+          try {
+            pieces = JSON.parse(btn.dataset.pieces);
+          } catch {
+            pieces = [];
+          }
+        }
+        this.cube.highlightPieces(pieces);
         document.getElementById('custom-algorithm').value = alg;
         this.algTokens = alg.trim().split(/\s+/);
         this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
@@ -323,6 +335,7 @@ export class UI {
 
     if (validPairs.length === 0) return;
 
+    this.cube.clearHighlight();
     this._prepareForExecution();
     this.algTokens  = validPairs.map(([t]) => t);
     const moves     = validPairs.map(([, m]) => m);
@@ -335,6 +348,9 @@ export class UI {
 
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
+    if (mode !== 'practice') {
+      this.cube.clearHighlight();
+    }
     this.mode = mode;
     const tutBtn = document.getElementById('btn-tutorial');
     const pracBtn = document.getElementById('btn-practice');
