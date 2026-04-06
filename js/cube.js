@@ -66,6 +66,10 @@ export class RubiksCubeApp {
     this._rafId    = null;
     this._disposed = false;
 
+    // Piece highlight state
+    this._highlightedCubies = [];
+    this._highlightTime     = 0;
+
     // ── Callbacks set by UI ──────────────────────────────────────────────────
     /** Called when a move begins:  fn(moveIndexInAlg, totalMovesInAlg) */
     this.onMoveStart    = null;
@@ -282,6 +286,19 @@ export class RubiksCubeApp {
       }
 
       this.controls.update();
+
+      // Pulse the emissive intensity of any highlighted cubies
+      if (this._highlightedCubies.length > 0) {
+        this._highlightTime += delta;
+        // Gentle 1 Hz pulse between 0.25 and 0.55 intensity
+        const intensity = 0.4 + 0.15 * Math.sin(this._highlightTime * 2 * Math.PI);
+        for (const c of this._highlightedCubies) {
+          if (Array.isArray(c.material)) {
+            c.material.forEach(m => { m.emissiveIntensity = intensity; });
+          }
+        }
+      }
+
       this.renderer.render(this.scene, this.camera);
     };
     this._rafId = requestAnimationFrame(tick);
@@ -371,6 +388,7 @@ export class RubiksCubeApp {
    */
   reset() {
     this.clearQueue();
+    this.clearHighlight();
     this._buildCube();
   }
 
@@ -417,6 +435,7 @@ export class RubiksCubeApp {
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
     }
+    this.clearHighlight();
     this._disposeCubies();
     this.controls.dispose();
     this.renderer.dispose();
@@ -429,4 +448,44 @@ export class RubiksCubeApp {
   resume()       { this.isPaused = false; }
   togglePause()  { this.isPaused = !this.isPaused; return this.isPaused; }
   isQueueEmpty() { return !this.isAnimating && this.animQueue.length === 0; }
+
+  /**
+   * Highlight the cubies currently located at the given positions.
+   * Each position is an {x, y, z} object with integer coordinates (-1, 0, 1).
+   * The highlight pulses (animated emissive glow) until clearHighlight() is called.
+   */
+  highlightPieces(positions) {
+    this.clearHighlight();
+    if (!positions || positions.length === 0) return;
+    this._highlightTime = 0;
+    for (const cubie of this.cubies) {
+      const cx = Math.round(cubie.position.x);
+      const cy = Math.round(cubie.position.y);
+      const cz = Math.round(cubie.position.z);
+      if (positions.some(p => p.x === cx && p.y === cy && p.z === cz)) {
+        if (Array.isArray(cubie.material)) {
+          cubie.material.forEach(m => {
+            m.emissive.setHex(0x00ddff);
+            m.emissiveIntensity = 0.4;
+          });
+        }
+        this._highlightedCubies.push(cubie);
+      }
+    }
+  }
+
+  /**
+   * Remove any active piece highlight applied by highlightPieces().
+   */
+  clearHighlight() {
+    for (const cubie of this._highlightedCubies) {
+      if (Array.isArray(cubie.material)) {
+        cubie.material.forEach(m => {
+          m.emissive.setHex(0x000000);
+          m.emissiveIntensity = 0;
+        });
+      }
+    }
+    this._highlightedCubies = [];
+  }
 }

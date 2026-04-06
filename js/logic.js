@@ -167,13 +167,58 @@ export const TUTORIAL_STEPS = [
 ];
 
 // ── Quick algorithm reference ────────────────────────────────────────────────
+// pieces: target cubie coordinates {x,y,z} to highlight on the 3-D cube.
+//   Cube coordinate system: x=1 Right, x=-1 Left, y=1 Up, y=-1 Down,
+//                           z=1 Front, z=-1 Back.
+//   Corner positions have all three coordinates non-zero;
+//   edge positions have exactly one coordinate equal to zero.
 export const QUICK_ALGORITHMS = [
-  { name: 'Sexy Move',    alg: "R U R' U'" },
-  { name: 'Sledgehammer', alg: "R' F R F'" },
-  { name: 'Sune',         alg: "R U R' U R U2 R'" },
-  { name: 'Anti-Sune',    alg: "L' U' L U' L' U2 L" },
-  { name: 'T-Perm',       alg: "R U R' U' R' F R2 U' R' U' R U R' F'" },
-  { name: 'U-Perm (a)',   alg: "R U' R U R U R U' R' U' R2" },
-  { name: 'U-Perm (b)',   alg: "R2 U R U R' U' R' U' R' U R'" },
-  { name: 'Y-Perm',       alg: "F R U' R' U' R U R' F' R U R' U' R' F R F'" },
+  {
+    name: 'Sexy Move',
+    alg:  "R U R' U'",
+    // Inserts the front-right-bottom corner (F2L slot).
+    pieces: [{ x: 1, y: -1, z: 1 }],
+  },
+  {
+    name: 'Sledgehammer',
+    alg:  "R' F R F'",
+    // Inserts the front-right middle-layer edge (F2L slot).
+    pieces: [{ x: 1, y: 0, z: 1 }],
+  },
+  {
+    name: 'Sune',
+    alg:  "R U R' U R U2 R'",
+    // Cycles orientation of all four U-layer corners (OLL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 }],
+  },
+  {
+    name: 'Anti-Sune',
+    alg:  "L' U' L U' L' U2 L",
+    // Mirror of Sune – same four U-layer corners (OLL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }, { x: 1, y: 1, z: -1 }, { x: -1, y: 1, z: -1 }],
+  },
+  {
+    name: 'T-Perm',
+    alg:  "R U R' U' R' F R2 U' R' U' R U R' F'",
+    // Swaps UFR↔UFL corners and UF↔UR edges (PLL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }, { x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }],
+  },
+  {
+    name: 'U-Perm (a)',
+    alg:  "R U' R U R U R U' R' U' R2",
+    // 3-cycles UF→UL→UR edges clockwise (PLL).
+    pieces: [{ x: 0, y: 1, z: 1 }, { x: -1, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }],
+  },
+  {
+    name: 'U-Perm (b)',
+    alg:  "R2 U R U R' U' R' U' R' U R'",
+    // 3-cycles UF→UR→UL edges counter-clockwise (PLL).
+    pieces: [{ x: 0, y: 1, z: 1 }, { x: -1, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }],
+  },
+  {
+    name: 'Y-Perm',
+    alg:  "F R U' R' U' R U R' F' R U R' U' R' F R F'",
+    // Swaps UFR↔UBL corners and UF↔UR edges diagonally (PLL).
+    pieces: [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: -1 }, { x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }],
+  },
 ];
