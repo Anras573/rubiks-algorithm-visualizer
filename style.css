@@ -40,6 +40,7 @@
 html, body {
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--bg-main);
   color: var(--text-primary);
@@ -51,6 +52,7 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height – accounts for mobile address bar */
 }
 
 /* ── Header ────────────────────────────────────────────────── */
@@ -60,6 +62,9 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-top: env(safe-area-inset-top);
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   gap: 12px;
@@ -552,6 +557,9 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -608,7 +616,9 @@ html, body {
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  width: 160px;
+  flex: 1;
+  min-width: 60px;
+  max-width: 160px;
   height: 4px;
   background: var(--bg-card);
   border-radius: 2px;
@@ -664,9 +674,73 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  :root { --sidebar-w: 100%; }
+  :root {
+    --sidebar-w: 100%;
+    --header-h: auto;
+  }
+
+  /* Stack cube above sidebar */
   #main { flex-direction: column; }
-  #cube-container { height: 50vh; }
-  #sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+
+  /* Cube takes the top half; sidebar fills the rest */
+  #cube-container {
+    height: 45vh;
+    flex-shrink: 0;
+  }
+
+  #sidebar {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Header: collapse title and shrink button labels */
+  #header {
+    flex-wrap: wrap;
+    height: auto;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: 8px;
+    row-gap: 8px;
+  }
+
   #header h1 { display: none; }
+
+  .header-center { order: 3; width: 100%; justify-content: center; }
+  .header-right  { order: 2; }
+
+  /* Larger touch targets for all interactive buttons */
+  .mode-btn,
+  .icon-btn,
+  .ctrl-btn,
+  .nav-step-btn,
+  .execute-btn,
+  .quick-alg-btn {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  /* Slider thumb – bigger for finger tapping */
+  input[type="range"]::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Prevent iOS from zooming when the algorithm input is focused */
+  .input-row input {
+    font-size: 16px;
+  }
+
+  /* Hide status text to save space; key info is in the running/done states */
+  #status-display { display: none; }
 }
