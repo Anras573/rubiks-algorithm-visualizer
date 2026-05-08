@@ -552,7 +552,7 @@ html, body {
 
 /* ── Controls Bar ──────────────────────────────────────────── */
 #controls-bar {
-  height: var(--footer-h);
+  min-height: var(--footer-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
