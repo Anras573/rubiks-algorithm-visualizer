@@ -57,7 +57,7 @@ html, body {
 
 /* ── Header ────────────────────────────────────────────────── */
 #header {
-  height: var(--header-h);
+  min-height: var(--header-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -723,6 +723,12 @@ input[type="range"]::-moz-range-thumb {
     min-height: 44px;
     padding-top: 10px;
     padding-bottom: 10px;
+  }
+
+  /* Override the base .input-row .execute-btn sizing so it also meets 44px */
+  .input-row .execute-btn {
+    flex: 0 0 44px;
+    min-height: 44px;
   }
 
   /* Slider thumb – bigger for finger tapping */
