@@ -684,8 +684,7 @@ input[type="range"]::-moz-range-thumb {
 
   /* Cube takes the top half; sidebar fills the rest */
   #cube-container {
-    height: 45vh;
-    flex-shrink: 0;
+    flex: 0 0 45vh;
   }
 
   #sidebar {
@@ -697,6 +696,13 @@ input[type="range"]::-moz-range-thumb {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  /* Disable inner-panel scrolling so #sidebar is the single scroll container */
+  #tutorial-panel,
+  #practice-panel {
+    height: auto;
+    overflow-y: visible;
   }
 
   /* Header: collapse title and shrink button labels */
