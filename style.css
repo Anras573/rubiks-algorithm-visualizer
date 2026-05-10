@@ -154,6 +154,8 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ── Cube Container ────────────────────────────────────────── */
@@ -685,6 +687,7 @@ input[type="range"]::-moz-range-thumb {
   /* Cube takes the top half; sidebar fills the rest */
   #cube-container {
     flex: 0 0 45vh;
+    flex: 0 0 45dvh;
   }
 
   #sidebar {
