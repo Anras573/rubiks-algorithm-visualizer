@@ -62,6 +62,11 @@
             <div class="alg-section">
               <div class="alg-label">Algorithm</div>
               <div id="algorithm-display"></div>
+              <div class="step-controls">
+                <button class="step-btn step-back" disabled title="Step back one move">◀ Step</button>
+                <span class="step-pos" aria-live="polite">–</span>
+                <button class="step-btn step-fwd" disabled title="Step forward one move">Step ▶</button>
+              </div>
             </div>
 
             <p id="step-tip" class="tip-text"></p>
@@ -88,6 +93,11 @@
               <button id="btn-execute-custom" class="execute-btn" aria-label="Execute algorithm">▶</button>
             </div>
             <div id="custom-alg-display" class="alg-display-small"></div>
+            <div class="step-controls">
+              <button class="step-btn step-back" disabled title="Step back one move">◀ Step</button>
+              <span class="step-pos" aria-live="polite">–</span>
+              <button class="step-btn step-fwd" disabled title="Step forward one move">Step ▶</button>
+            </div>
             <div id="alg-warning" class="alg-warning" aria-live="polite"></div>
           </div>
 

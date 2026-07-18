@@ -33,14 +33,17 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function makeTokenHTML(token, index, state /* 'idle'|'active'|'done' */ = 'idle') {
+function makeTokenHTML(token, index, total, state /* 'idle'|'active'|'done' */ = 'idle', isCurrent = false) {
   const bg  = tokenBg(token);
   const fg  = tokenFg(token);
-  const cls = state === 'active' ? ' active' : state === 'done' ? ' done' : '';
-  return `<span class="move-token${cls}"
+  let cls = state === 'active' ? ' active' : state === 'done' ? ' done' : '';
+  if (isCurrent) cls += ' current';
+  const label = `Go to move ${index + 1} of ${total}: ${token}`;
+  return `<button type="button" class="move-token${cls}"
                 data-idx="${index}"
                 data-token="${escapeHtml(token)}"
-                style="background:${bg};color:${fg};">${escapeHtml(token)}</span>`;
+                aria-label="${escapeHtml(label)}"
+                style="background:${bg};color:${fg};">${escapeHtml(token)}</button>`;
 }
 
 // ── UI class ──────────────────────────────────────────────────────────────────
@@ -52,6 +55,8 @@ export class UI {
     this.isExecuting   = false;
     this.activeMoveIdx = -1;
     this.algTokens     = [];   // raw token strings for current algorithm
+    this._cursor       = -1;   // step-helper cursor (-1 = no session loaded)
+    this._cursorTotal  = 0;
 
     this._wireCallbacks();
     this._wireControls();
@@ -74,13 +79,36 @@ export class UI {
     this.cube.onQueueEmpty = () => {
       this.isExecuting   = false;
       this.activeMoveIdx = -1;
-      // Mark all tokens as done so the user can see the completed sequence
-      this._updateTokenHighlight(this.algTokens.length);
+      const st = this.cube.getAlgorithmState();
+      if (st && this.algTokens.length === st.total) {
+        // A step-helper session is loaded – show the cursor position rather
+        // than blanket-marking every token as done.
+        this._renderCursorTokens();
+        if (st.cursor >= st.total && st.total > 0) {
+          this._updateStatusDone();
+        } else {
+          this._updateStatusIdle();
+        }
+      } else {
+        // Mark all tokens as done so the user can see the completed sequence
+        this._updateTokenHighlight(this.algTokens.length);
+        this._updateStatusDone();
+      }
       this._setExecuteBtn(false);
-      this._updateStatusDone();
       // Re-apply the tutorial step's highlight now that execution has ended or been stopped
       if (this.mode === 'tutorial') {
         this._applyTutorialHighlight();
+      }
+    };
+
+    this.cube.onCursorChange = (cursor, total) => {
+      this._cursor      = cursor;
+      this._cursorTotal = total;
+      this._updateStepControls();
+      // During animated playback the onMoveStart highlight drives the token
+      // display; only take over rendering when idle or single-stepping.
+      if (!this.isExecuting) {
+        this._renderCursorTokens();
       }
     };
   }
@@ -95,6 +123,7 @@ export class UI {
     this._on('btn-reset', 'click', () => {
       this.cube.reset();
       this._clearExecutionState();
+      this._reloadTutorialSession();
       this._hideBanner();
     });
 
@@ -104,6 +133,7 @@ export class UI {
       this.cube.applyScramble(moves);
       this._showBanner(scramble);
       this._clearExecutionState();
+      this._reloadTutorialSession();
     });
 
     // Tutorial navigation
@@ -115,13 +145,30 @@ export class UI {
         this.cube.clearQueue();
         this._clearExecutionState();
       } else {
-        const step  = TUTORIAL_STEPS[this.stepIndex];
-        const moves = parseAlgorithm(step.algorithm);
-        if (moves.length === 0) return;
-        this._prepareForExecution();
-        this.algTokens = step.algorithm.trim().split(/\s+/);
-        this._renderAlgorithmTokens('algorithm-display', this.algTokens, 0);
-        this.cube.executeAlgorithm(moves);
+        const step   = TUTORIAL_STEPS[this.stepIndex];
+        const tokens = step.algorithm.trim().split(/\s+/);
+        const st     = this.cube.getAlgorithmState();
+
+        // "Play from here": when the user has selected a mid-algorithm step,
+        // resume from the cursor instead of restarting from the beginning.
+        const resumeAt = (st && st.total === tokens.length &&
+                          this.algTokens.join(' ') === tokens.join(' ') &&
+                          st.cursor > 0 && st.cursor < st.total)
+          ? st.cursor
+          : null;
+
+        this.algTokens = tokens;
+        if (resumeAt !== null) {
+          this._prepareForExecution();
+          this._renderAlgorithmTokens('algorithm-display', this.algTokens, resumeAt);
+          this.cube.playFrom(resumeAt);
+        } else {
+          const moves = parseAlgorithm(step.algorithm);
+          if (moves.length === 0) return;
+          this._prepareForExecution();
+          this._renderAlgorithmTokens('algorithm-display', this.algTokens, 0);
+          this.cube.executeAlgorithm(moves);
+        }
         this._setExecuteBtn(true);
         this._updateStatusRunning(step.algorithm);
       }
@@ -159,6 +206,82 @@ export class UI {
     document.getElementById('custom-algorithm').addEventListener('keydown', e => {
       if (e.key === 'Enter') this._executeCustom();
     });
+
+    // Step helper – step buttons (one pair per panel, wired by class)
+    document.querySelectorAll('.step-back').forEach(btn =>
+      btn.addEventListener('click', () => this._step(-1)));
+    document.querySelectorAll('.step-fwd').forEach(btn =>
+      btn.addEventListener('click', () => this._step(+1)));
+
+    // Step helper – clickable move tokens (delegated: tokens are re-rendered
+    // via innerHTML, so per-token listeners would be lost)
+    for (const id of ['algorithm-display', 'custom-alg-display']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener('click', e => {
+        const token = e.target.closest('.move-token');
+        if (!token || !el.contains(token)) return;
+        const idx = parseInt(token.dataset.idx, 10);
+        if (Number.isInteger(idx)) this._selectStep(idx + 1);
+      });
+    }
+
+    // Step helper – arrow keys step through the algorithm when focus is on
+    // the algorithm display or the step controls (not hijacked globally)
+    const stepKeyHandler = e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      this._step(e.key === 'ArrowRight' ? +1 : -1);
+    };
+    document.querySelectorAll('#algorithm-display, #custom-alg-display, .step-controls')
+      .forEach(el => el.addEventListener('keydown', stepKeyHandler));
+  }
+
+  // ── Step helper ─────────────────────────────────────────────────────────────
+
+  /** Step the loaded algorithm one move forward (+1) or backward (-1). */
+  _step(dir) {
+    if (!this._sessionMatchesTokens()) return;
+    this._autoResume();
+    if (dir > 0) this.cube.stepForward();
+    else         this.cube.stepBackward();
+  }
+
+  /** Jump to the state after `target` moves of the loaded algorithm. */
+  _selectStep(target) {
+    if (!this._sessionMatchesTokens()) return;
+    this._autoResume();
+    this.cube.jumpTo(target);
+  }
+
+  /** True when a session is loaded and mirrors the rendered token list. */
+  _sessionMatchesTokens() {
+    const st = this.cube.getAlgorithmState();
+    return !!st && st.total > 0 && st.total === this.algTokens.length;
+  }
+
+  /** Resume the animation loop if paused so a scheduled step plays at once. */
+  _autoResume() {
+    if (this.cube.isPaused) {
+      this.cube.resume();
+      const btn = document.getElementById('btn-play-pause');
+      if (btn) btn.textContent = '⏸ Pause';
+    }
+  }
+
+  _updateStepControls() {
+    const cursor = this._cursor;
+    const total  = this._cursorTotal;
+    const hasSession = cursor >= 0 && total > 0;
+    document.querySelectorAll('.step-back').forEach(btn => {
+      btn.disabled = !hasSession || cursor <= 0;
+    });
+    document.querySelectorAll('.step-fwd').forEach(btn => {
+      btn.disabled = !hasSession || cursor >= total;
+    });
+    document.querySelectorAll('.step-pos').forEach(el => {
+      el.textContent = hasSession ? `Move ${cursor} / ${total}` : '–';
+    });
   }
 
   // ── Tutorial rendering ──────────────────────────────────────────────────────
@@ -183,6 +306,10 @@ export class UI {
     // Algorithm tokens
     this.algTokens = step.algorithm.trim().split(/\s+/);
     this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
+
+    // Load the step's algorithm as a step-helper session (cursor 0, based on
+    // the cube's current state) so tokens and step buttons work immediately.
+    this.cube.loadAlgorithm(parseAlgorithm(step.algorithm));
 
     // Navigation buttons
     document.getElementById('btn-prev-step').disabled = this.stepIndex === 0;
@@ -212,8 +339,34 @@ export class UI {
     if (!el) return;
     el.innerHTML = tokens.map((tok, i) => {
       const state = i === activeIdx ? 'active' : (i < activeIdx ? 'done' : 'idle');
-      return makeTokenHTML(tok, i, state);
+      return makeTokenHTML(tok, i, tokens.length, state);
     }).join('');
+  }
+
+  /**
+   * Render the tokens of the active panel from the step-helper cursor:
+   * applied moves are 'done', the last applied move carries the 'current'
+   * marker, and everything after the cursor is 'idle'.
+   */
+  _renderCursorTokens() {
+    const tokens = this.algTokens;
+    if (this._cursor < 0 || !tokens || tokens.length !== this._cursorTotal) return;
+    const containerId = this.mode === 'tutorial' ? 'algorithm-display' : 'custom-alg-display';
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    // Re-rendering destroys the focused token; remember it so keyboard users
+    // don't lose their place mid-stepping.
+    const focused = document.activeElement;
+    const focusedIdx = (focused && el.contains(focused) && focused.classList.contains('move-token'))
+      ? focused.dataset.idx
+      : null;
+    el.innerHTML = tokens.map((tok, i) => {
+      const state = i < this._cursor ? 'done' : 'idle';
+      return makeTokenHTML(tok, i, tokens.length, state, i === this._cursor - 1);
+    }).join('');
+    if (focusedIdx !== null) {
+      el.querySelector(`.move-token[data-idx="${focusedIdx}"]`)?.focus();
+    }
   }
 
   _updateTokenHighlight(activeIdx) {
@@ -341,13 +494,26 @@ export class UI {
 
     if (validPairs.length === 0) return;
 
+    const tokens = validPairs.map(([t]) => t);
+    const st     = this.cube.getAlgorithmState();
+    // "Play from here": resume from a selected mid-algorithm step when the
+    // input still matches the loaded session.
+    const resumeAt = (st && st.total === tokens.length &&
+                      this.algTokens.join(' ') === tokens.join(' ') &&
+                      st.cursor > 0 && st.cursor < st.total)
+      ? st.cursor
+      : null;
+
     this.cube.clearHighlight();
     this._prepareForExecution();
-    this.algTokens  = validPairs.map(([t]) => t);
-    const moves     = validPairs.map(([, m]) => m);
+    this.algTokens  = tokens;
     const filteredAlg = this.algTokens.join(' ');
-    this._renderAlgorithmTokens('custom-alg-display', this.algTokens, 0);
-    this.cube.executeAlgorithm(moves);
+    this._renderAlgorithmTokens('custom-alg-display', this.algTokens, resumeAt ?? 0);
+    if (resumeAt !== null) {
+      this.cube.playFrom(resumeAt);
+    } else {
+      this.cube.executeAlgorithm(validPairs.map(([, m]) => m));
+    }
     this._setExecuteBtn(true);
     this._updateStatusRunning(filteredAlg);
   }
@@ -355,15 +521,33 @@ export class UI {
   // ── Mode switching ──────────────────────────────────────────────────────────
   _setMode(mode) {
     if (mode === this.mode) return;
+    // Set the mode first: session/cursor callbacks below render into the
+    // panel that is about to become visible.
+    this.mode = mode;
     if (!this.isExecuting) {
       if (mode === 'tutorial') {
         const step = TUTORIAL_STEPS[this.stepIndex];
         this.cube.highlightPieces(step.pieces || []);
+        // Rebase the step-helper session on the tutorial step's algorithm
+        // (the loaded session may still belong to a practice algorithm).
+        this.algTokens = step.algorithm.trim().split(/\s+/);
+        this.cube.loadAlgorithm(parseAlgorithm(step.algorithm));
       } else {
         this.cube.clearHighlight();
+        // Rebase on whatever the practice panel currently displays, so its
+        // tokens stay selectable; clear the session when it displays nothing.
+        const container = document.getElementById('custom-alg-display');
+        const tokens = Array.from(container?.querySelectorAll('.move-token') ?? [])
+          .map(n => n.dataset.token ?? '')
+          .filter(Boolean);
+        this.algTokens = tokens;
+        if (tokens.length > 0) {
+          this.cube.loadAlgorithm(parseAlgorithm(tokens.join(' ')));
+        } else {
+          this.cube.clearAlgorithm();
+        }
       }
     }
-    this.mode = mode;
     const tutBtn = document.getElementById('btn-tutorial');
     const pracBtn = document.getElementById('btn-practice');
     tutBtn.classList.toggle('active', mode === 'tutorial');
@@ -446,7 +630,13 @@ export class UI {
     if (this.mode === 'tutorial') {
       const alg = TUTORIAL_STEPS[this.stepIndex]?.algorithm;
       this.algTokens = alg ? alg.trim().split(/\s+/) : [];
-      this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
+      // Preserve the step-helper position when a matching session survived
+      // (e.g. Stop mid-run); otherwise render all tokens idle.
+      if (this._sessionMatchesTokens()) {
+        this._renderCursorTokens();
+      } else {
+        this._renderAlgorithmTokens('algorithm-display', this.algTokens, -1);
+      }
       // Re-apply the tutorial highlight when execution is explicitly cleared
       // (stop/reset/scramble). Normal queue completion is handled in onQueueEmpty.
       this._applyTutorialHighlight();
@@ -455,6 +645,9 @@ export class UI {
       document.getElementById('custom-alg-display').innerHTML = '';
       const warningEl = document.getElementById('alg-warning');
       if (warningEl) warningEl.textContent = '';
+      // The practice display was cleared, so the session no longer matches
+      // anything on screen – drop it to keep the step controls consistent.
+      this.cube.clearAlgorithm();
     }
     this._setExecuteBtn(false);
     const playPauseBtn = document.getElementById('btn-play-pause');
@@ -471,6 +664,20 @@ export class UI {
   _applyTutorialHighlight() {
     const step = TUTORIAL_STEPS[this.stepIndex];
     this.cube.highlightPieces(step?.pieces || []);
+  }
+
+  /**
+   * Rebase the step-helper session on the current tutorial step, using the
+   * cube's current state as move 0. Called after Reset/Scramble invalidated
+   * the previous session. No-op in practice mode (a cleared practice session
+   * stays cleared until the next execute).
+   */
+  _reloadTutorialSession() {
+    if (this.mode !== 'tutorial') return;
+    const step = TUTORIAL_STEPS[this.stepIndex];
+    if (!step) return;
+    this.algTokens = step.algorithm.trim().split(/\s+/);
+    this.cube.loadAlgorithm(parseAlgorithm(step.algorithm));
   }
 
   _on(id, event, handler) {

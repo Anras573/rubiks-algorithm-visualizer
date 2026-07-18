@@ -57,6 +57,14 @@ export function parseMove(token) {
 }
 
 /**
+ * Return the inverse of a parsed move object.
+ * Negating the angle reverses the turn; a double turn (±π) is its own inverse.
+ */
+export function invertMove(move) {
+  return { ...move, angle: -move.angle };
+}
+
+/**
  * Parse a space-separated algorithm string into an array of move objects.
  */
 export function parseAlgorithm(algStr) {

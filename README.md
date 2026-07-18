@@ -16,6 +16,7 @@ An interactive, browser-based 3D Rubik's Cube visualizer built with [Three.js](h
   - Permute Last Layer — U-Perm (PLL)
 - **Practice Mode** — Enter any custom algorithm using standard WCA notation, or run one of eight built-in Quick Algorithms (Sexy Move, Sledgehammer, Sune, T-Perm, U-Perms, and more).
 - **Animated Execution** — Each move is animated individually; active moves are highlighted in the algorithm display.
+- **Step Helper** — Click any move in the algorithm display to jump the cube to the state after that move, or use the **◀ Step / Step ▶** buttons (and arrow keys) to walk through an algorithm one move at a time — forwards or backwards. Executing then resumes from the selected position.
 - **Playback Controls** — Pause, resume, stop, and adjust animation speed (1× – 10×) at any time.
 - **Scramble** — Generate and instantly apply a 20-move WCA-style random scramble.
 - **Reset** — Return the cube to its solved state in one click.
@@ -61,6 +62,7 @@ Simply open `index.html` through any static hosting service (GitHub Pages, Netli
 2. Read the description and tip for each step.
 3. Click **▶ Execute** to animate the step's algorithm on the cube.
    - Click **⏹ Stop** (the same button) to cancel the animation early.
+   - Or study the algorithm one move at a time: click a move token to jump straight to the state after that move, and use **◀ Step / Step ▶** (or the arrow keys) to go forwards or backwards move by move. The **Move i / n** indicator shows your position, and **▶ Execute** plays the rest from wherever you are.
 4. Use the **Pause / Play** button in the footer to pause or resume at any time.
 5. Adjust the **Speed** slider to slow down or speed up the animations.
 6. Click **↺ Reset** in the header to return the cube to a solved state.

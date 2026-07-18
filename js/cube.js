@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { invertMove } from './logic.js';
 
 // ── Colour palette ───────────────────────────────────────────────────────────
 const COLOURS = {
@@ -59,6 +60,14 @@ export class RubiksCubeApp {
     this._algMoveIndex = 0;
     this._algMoveTotal = 0;
 
+    // Loaded-algorithm session for the step helper.
+    // moves     : parsed move objects of the loaded algorithm
+    // cursor    : number of moves currently APPLIED to the cube (0..moves.length)
+    // scheduled : cursor value after all queued-but-not-yet-applied moves land;
+    //             step scheduling reads/advances this so rapid clicks can't
+    //             desync the cursor from the cube state.
+    this._session = null;
+
     // Used to fire onQueueEmpty exactly once when the queue drains
     this._queueDrained = true;
 
@@ -77,6 +86,11 @@ export class RubiksCubeApp {
     this.onMoveComplete = null;
     /** Called once when the animation queue empties */
     this.onQueueEmpty   = null;
+    /**
+     * Called whenever the step-helper cursor changes: fn(cursor, total).
+     * Fires with (-1, 0) when no algorithm session is loaded.
+     */
+    this.onCursorChange = null;
 
     this._setupScene();
     this._buildCube();
@@ -209,21 +223,25 @@ export class RubiksCubeApp {
       totalAngle:   angle,
       currentAngle: 0,
       cubies:       selected,
+      move,
     };
 
     this.isAnimating = true;
 
+    // Session-tagged moves (steps, playFrom) carry their own algorithm index;
+    // untagged moves fall back to the sequential counter.
+    const idx = move._algIdx !== undefined ? move._algIdx : this._algMoveIndex;
     if (this.onMoveStart) {
-      this.onMoveStart(this._algMoveIndex, this._algMoveTotal);
+      this.onMoveStart(idx, this._algMoveTotal);
     }
-    this._algMoveIndex++;
+    this._algMoveIndex = idx + 1;
   }
 
   // ── Private: Finish the current move animation ──────────────────────────────
   _finishCurrentMove() {
     if (!this.currentAnim) return;
 
-    const { axis, totalAngle, currentAngle, cubies } = this.currentAnim;
+    const { axis, totalAngle, currentAngle, cubies, move } = this.currentAnim;
 
     // Snap pivot to the exact target angle
     this.pivot.rotation[axis] += (totalAngle - currentAngle);
@@ -242,6 +260,43 @@ export class RubiksCubeApp {
     if (this.onMoveComplete) {
       this.onMoveComplete(this._algMoveIndex - 1, this._algMoveTotal);
     }
+
+    this._commitSessionMove(move);
+  }
+
+  // ── Private: Session cursor bookkeeping ─────────────────────────────────────
+
+  /** Advance the session cursor for a move that has just been applied. */
+  _commitSessionMove(move) {
+    if (this._session && move && move._cursorAfter !== undefined) {
+      this._session.cursor = move._cursorAfter;
+      this._emitCursor();
+    }
+  }
+
+  _emitCursor() {
+    if (!this.onCursorChange) return;
+    if (this._session) {
+      this.onCursorChange(this._session.cursor, this._session.moves.length);
+    } else {
+      this.onCursorChange(-1, 0);
+    }
+  }
+
+  /**
+   * Snap any in-flight animation and apply all queued moves instantly so the
+   * cube state catches up with everything already scheduled.
+   */
+  _flushQueueInstant() {
+    if (this.isAnimating && this.currentAnim) {
+      this._finishCurrentMove();
+    }
+    while (this.animQueue.length > 0) {
+      const m = this.animQueue.shift();
+      this._applyInstant(m);
+      this._commitSessionMove(m);
+    }
+    this._queueDrained = true;
   }
 
   // ── Private: Snap cubie to nearest valid grid position + rotation ───────────
@@ -346,21 +401,125 @@ export class RubiksCubeApp {
   // ── Public API ──────────────────────────────────────────────────────────────
 
   /**
-   * Queue an array of parsed move objects for animated execution.
-   * Any in-progress move is snapped to completion first (via _clearQueueSilently)
+   * Load an algorithm session for the step helper without playing it.
+   * The cube's current state becomes the session's base state (cursor 0).
+   * Any in-progress run is snapped to completion first.
+   */
+  loadAlgorithm(moves) {
+    this._clearQueueSilently();
+    this._session = {
+      moves:     moves.map(m => ({ ...m })),
+      cursor:    0,
+      scheduled: 0,
+    };
+    this._algMoveIndex = 0;
+    this._algMoveTotal = moves.length;
+    this._emitCursor();
+  }
+
+  /** Drop the loaded algorithm session (cursor becomes meaningless). */
+  clearAlgorithm() {
+    if (!this._session) return;
+    this._session = null;
+    this._emitCursor();
+  }
+
+  /** Current session state as { cursor, total }, or null when none is loaded. */
+  getAlgorithmState() {
+    if (!this._session) return null;
+    return { cursor: this._session.cursor, total: this._session.moves.length };
+  }
+
+  /**
+   * Animate the next move of the loaded algorithm. Returns true if a move was
+   * scheduled. Repeated calls queue up cleanly while an animation is running.
+   */
+  stepForward() {
+    const s = this._session;
+    if (!s || s.scheduled >= s.moves.length) return false;
+    const idx = s.scheduled++;
+    this._enqueueMove({ ...s.moves[idx], _algIdx: idx, _cursorAfter: idx + 1 });
+    return true;
+  }
+
+  /**
+   * Animate the inverse of the previous move of the loaded algorithm, so the
+   * cube visually rewinds one step. Returns true if a move was scheduled.
+   */
+  stepBackward() {
+    const s = this._session;
+    if (!s || s.scheduled <= 0) return false;
+    const idx = --s.scheduled;
+    this._enqueueMove({ ...invertMove(s.moves[idx]), _algIdx: idx, _cursorAfter: idx });
+    return true;
+  }
+
+  /**
+   * Jump instantly to the state after `idx` moves of the loaded algorithm
+   * (idx 0 = the session's base state). Applies the delta from the current
+   * position — forward moves or inverses — without animation, so a scrambled
+   * base state is preserved. Fires onQueueEmpty if a run was in progress.
+   */
+  jumpTo(idx) {
+    const s = this._session;
+    if (!s) return;
+    const target = Math.max(0, Math.min(s.moves.length, Math.round(idx)));
+
+    const wasRunning = this.animQueue.length > 0 || (this.isAnimating && this.currentAnim);
+    // Catch the cube up with everything already scheduled before computing
+    // the delta, so cursor and cube state agree.
+    this._flushQueueInstant();
+
+    while (s.cursor < target) {
+      this._applyInstant(s.moves[s.cursor]);
+      s.cursor++;
+    }
+    while (s.cursor > target) {
+      this._applyInstant(invertMove(s.moves[s.cursor - 1]));
+      s.cursor--;
+    }
+    s.scheduled = target;
+    this._algMoveIndex = target;
+
+    if (wasRunning && this.onQueueEmpty) this.onQueueEmpty();
+    this._emitCursor();
+  }
+
+  /**
+   * Jump to position `idx`, then play the rest of the algorithm animated.
+   * Returns true if any moves were queued (false when already at the end).
+   */
+  playFrom(idx) {
+    const s = this._session;
+    if (!s) return false;
+    this.jumpTo(idx);
+
+    const len = s.moves.length;
+    if (s.cursor >= len) return false;
+    for (let i = s.cursor; i < len; i++) {
+      this._enqueueMove({ ...s.moves[i], _algIdx: i, _cursorAfter: i + 1 });
+    }
+    s.scheduled = len;
+    return true;
+  }
+
+  /** Internal: push a move onto the animation queue. */
+  _enqueueMove(move) {
+    this._queueDrained = false;
+    this.animQueue.push(move);
+  }
+
+  /**
+   * Load `moves` as the current algorithm session and play it from the start.
+   * Any in-progress move is snapped to completion first (via loadAlgorithm)
    * so that onMoveComplete fires with the old algorithm's index before counters
    * are reset — preventing a -1 index from reaching UI callbacks.
    * An empty move array is treated as a no-op (no state changes, no callbacks).
    */
   executeAlgorithm(moves) {
     if (moves.length === 0) return;
-    // Use the silent variant so that swapping to a new algorithm does not
-    // spuriously emit onQueueEmpty for the algorithm being replaced.
-    this._clearQueueSilently();
-    this._algMoveIndex = 0;
-    this._algMoveTotal = moves.length;
-    this._queueDrained = false;
-    moves.forEach(m => this.animQueue.push({ ...m }));
+    this.loadAlgorithm(moves);
+    this.playFrom(0);
   }
 
   /**
@@ -383,6 +542,11 @@ export class RubiksCubeApp {
       this._finishCurrentMove();
     }
     this._queueDrained = true;
+    // Queued-but-unapplied session moves were just dropped: pull the
+    // scheduling pointer back to the moves that actually landed.
+    if (this._session) {
+      this._session.scheduled = this._session.cursor;
+    }
   }
 
   /**
@@ -392,6 +556,9 @@ export class RubiksCubeApp {
     this.clearQueue();
     this.clearHighlight();
     this._buildCube();
+    // The cube state changed out from under any loaded session – invalidate it
+    // so a stale cursor can never be applied.
+    this.clearAlgorithm();
   }
 
   /**
