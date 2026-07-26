@@ -73,6 +73,34 @@ export function parseAlgorithm(algStr) {
 }
 
 /**
+ * Invert a single move token: "R" → "R'", "R'" → "R", "R2" → "R2".
+ * Returns null for unrecognised tokens.
+ */
+export function invertToken(token) {
+  if (!token) return null;
+  const m = token.trim().match(/^([RLUDFBMES])(2?)('?)$/);
+  if (!m) return null;
+
+  const face = m[1];
+  if (m[2] === '2') return face + '2';   // a half-turn is its own inverse
+  return m[3] === "'" ? face : face + "'";
+}
+
+/**
+ * Invert a whole algorithm string: reverse the move order and invert each
+ * move. Applying `algStr` after `invertAlgorithm(algStr)` is a no-op, which
+ * is what makes an inverted algorithm usable as a setup sequence.
+ */
+export function invertAlgorithm(algStr) {
+  if (!algStr || !algStr.trim()) return '';
+  return algStr.trim().split(/\s+/)
+    .map(invertToken)
+    .filter(Boolean)
+    .reverse()
+    .join(' ');
+}
+
+/**
  * Generate a random WCA-style scramble of the given length.
  * Avoids consecutive moves on the same axis.
  */
@@ -103,6 +131,13 @@ export function generateScramble(length = 20) {
 // pieces: cubie coordinates {x,y,z} to highlight for each step.
 //   Cube coordinate system: x=1 Right, x=-1 Left, y=1 Up, y=-1 Down,
 //                           z=1 Front, z=-1 Back.
+//
+// setup : moves applied to a *solved* cube when the step is opened, so the
+//   cube starts out solved apart from the pieces this step's algorithm puts
+//   back — running the algorithm once finishes the cube. Every setup here is
+//   the inverse of the step's own algorithm (see invertAlgorithm), which is
+//   what guarantees that property. A step without a `setup` falls back to the
+//   derived inverse via getStepSetup().
 
 // Named coordinate sets reused across multiple tutorial steps.
 const TOP_EDGES   = [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }, { x: 0, y: 1, z: -1 }, { x: -1, y: 1, z: 0 }];
@@ -117,6 +152,7 @@ export const TUTORIAL_STEPS = [
       'Form a white cross on the top face. Each of the four white edge pieces ' +
       'must also align with the centre colour of its adjacent side face.',
     algorithm: "F R U R' U' F'",
+    setup: "F U R U' R' F'",
     tip: "💡 Hold the cube with white on top. Locate white edge pieces and bring " +
          "them up one by one to form a '+' shape while matching the side centres.",
     color: '#ffffff',
@@ -131,6 +167,7 @@ export const TUTORIAL_STEPS = [
       'Complete the first layer by correctly inserting the four white corner ' +
       'pieces. Each corner should show white on top and match both adjacent side colours.',
     algorithm: "R U R' U'",
+    setup: "U R U' R'",
     tip: "💡 This is the Sexy Move. Position the target corner at bottom-right-front, " +
          "then repeat R U R' U' (up to 5 times) until it slots in correctly.",
     color: '#ffffff',
@@ -145,6 +182,7 @@ export const TUTORIAL_STEPS = [
       'Insert the four middle-layer edge pieces to complete the first two layers. ' +
       'This algorithm places an edge into the right slot.',
     algorithm: "U R U' R' U' F' U F",
+    setup: "F' U' F U R U R' U'",
     tip: "💡 For the left slot, use the mirror: U' L' U L U F U' F'",
     color: '#ffa500',
     // The four middle-layer edge positions (FR, FL, BR, BL).
@@ -158,6 +196,7 @@ export const TUTORIAL_STEPS = [
       'Create a yellow cross on the top face. This is the first stage of ' +
       'Orienting the Last Layer (OLL).',
     algorithm: "F R U R' U' F'",
+    setup: "F U R U' R' F'",
     tip: "💡 Repeat this algorithm while checking the top face. " +
          "Depending on your starting case (dot, L-shape, or bar) you may need 1–3 applications.",
     color: '#ffff00',
@@ -172,6 +211,7 @@ export const TUTORIAL_STEPS = [
       'Orient all yellow stickers to face upward. The Sune algorithm cycles ' +
       'corner orientations to complete the OLL.',
     algorithm: "R U R' U R U2 R'",
+    setup: "R U2 R' U' R U' R'",
     tip: "💡 After each Sune, check the top face and rotate (U turn) if needed. " +
          "Apply again until all yellows face up.",
     color: '#ffff00',
@@ -186,6 +226,7 @@ export const TUTORIAL_STEPS = [
       'Move last-layer pieces to their final positions to complete the solve. ' +
       'This U-Perm cycles three edge pieces.',
     algorithm: "R U' R U R U R U' R' U' R2",
+    setup: "R2 U R U R' U' R' U' R' U R'",
     tip: "💡 Align one side so it matches its centre colour, then execute U-Perm. " +
          "For corners use T-Perm or A-Perm as needed.",
     color: '#ffff00',
@@ -193,6 +234,17 @@ export const TUTORIAL_STEPS = [
     pieces: [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 0 }, { x: -1, y: 1, z: 0 }],
   },
 ];
+
+/**
+ * The setup sequence for a tutorial step: the moves that turn a solved cube
+ * into that step's starting position. Falls back to the inverse of the step's
+ * algorithm when no explicit `setup` is given.
+ */
+export function getStepSetup(step) {
+  if (!step) return '';
+  if (typeof step.setup === 'string') return step.setup;
+  return invertAlgorithm(step.algorithm);
+}
 
 // ── Quick algorithm reference ────────────────────────────────────────────────
 // pieces: target cubie coordinates {x,y,z} to highlight on the 3-D cube.

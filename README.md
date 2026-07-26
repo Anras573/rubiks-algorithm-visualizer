@@ -14,12 +14,15 @@ An interactive, browser-based 3D Rubik's Cube visualizer built with [Three.js](h
   - Yellow Cross (OLL)
   - Orient Last Layer — Sune (OLL)
   - Permute Last Layer — U-Perm (PLL)
+- **Ready-made Case per Step** — Opening a tutorial step sets the cube up for it: everything is solved
+  except the pieces that step's algorithm puts back, so running the algorithm once finishes the cube.
+  The unsolved pieces are highlighted on the 3D cube, and the setup sequence is shown in the sidebar.
 - **Practice Mode** — Enter any custom algorithm using standard WCA notation, or run one of eight built-in Quick Algorithms (Sexy Move, Sledgehammer, Sune, T-Perm, U-Perms, and more).
 - **Animated Execution** — Each move is animated individually; active moves are highlighted in the algorithm display.
 - **Step Helper** — Click any move in the algorithm display to jump the cube to the state after that move, or use the **◀ Step / Step ▶** buttons (and arrow keys) to walk through an algorithm one move at a time — forwards or backwards. Executing then resumes from the selected position.
 - **Playback Controls** — Pause, resume, stop, and adjust animation speed (1× – 10×) at any time.
 - **Scramble** — Generate and instantly apply a 20-move WCA-style random scramble.
-- **Reset** — Return the cube to its solved state in one click.
+- **Reset** — One click restores the current tutorial step's starting position (or the solved cube in Practice Mode).
 - **Responsive Layout** — Adapts to smaller screens (sidebar moves below the cube on narrow viewports).
 - **No build step required** — Runs directly in any modern browser that supports ES modules and import maps.
 
@@ -58,15 +61,20 @@ Simply open `index.html` through any static hosting service (GitHub Pages, Netli
 
 ### Tutorial Mode (default)
 
-1. Use **← Prev** and **Next →** to navigate between the six solve steps.
+1. Use **← Prev** and **Next →** to navigate between the six solve steps. Each step sets the cube up
+   for itself: the cube arrives solved apart from the pieces that step's algorithm restores (they pulse
+   with a cyan glow), so a single run of the algorithm completes it. The sidebar shows the setup
+   sequence used to create the position.
 2. Read the description and tip for each step.
-3. Click **▶ Execute** to animate the step's algorithm on the cube.
+3. Click **▶ Execute** to animate the step's algorithm on the cube — it should end solved.
    - Click **⏹ Stop** (the same button) to cancel the animation early.
    - Or study the algorithm one move at a time: click a move token to jump straight to the state after that move, and use **◀ Step / Step ▶** (or the arrow keys) to go forwards or backwards move by move. The **Move i / n** indicator shows your position, and **▶ Execute** plays the rest from wherever you are.
 4. Use the **Pause / Play** button in the footer to pause or resume at any time.
 5. Adjust the **Speed** slider to slow down or speed up the animations.
-6. Click **↺ Reset** in the header to return the cube to a solved state.
-7. Click **🔀 Scramble** to apply a random 20-move scramble.
+6. Click **↺ Reset** in the header to put the step's starting position back — handy for replaying the
+   same case after the algorithm has solved it.
+7. Click **🔀 Scramble** to apply a random 20-move scramble. This replaces the step's starting position;
+   **↺ Reset** brings it back.
 
 ### Practice Mode
 
@@ -149,7 +157,11 @@ const app = new RubiksCubeApp(document.getElementById('cube-container'));
 | Method / Property | Description |
 |-------------------|-------------|
 | `executeAlgorithm(moves)` | Queue an array of parsed move objects for animated execution |
-| `applyScramble(moves)` | Reset and instantly apply moves without animation |
+| `applyMovesInstant(moves)` | Reset and instantly apply moves without animation (scrambles, tutorial setups) |
+| `applyScramble(moves)` | Alias of `applyMovesInstant` |
+| `getUnsolvedPositions()` | Positions of every cubie that is displaced or twisted out of its solved state |
+| `highlightPieces(positions)` | Pulse a cyan glow on the cubies at the given `{x,y,z}` positions |
+| `clearHighlight()` | Remove any active piece highlight |
 | `reset()` | Return the cube to its solved state |
 | `clearQueue()` | Stop and discard any queued animations |
 | `setSpeed(n)` | Set animation speed — `n` from `1` (slow) to `10` (fast) |
@@ -167,7 +179,10 @@ const app = new RubiksCubeApp(document.getElementById('cube-container'));
 |--------|-------------|
 | `parseMove(token)` | Parse a single WCA token (e.g. `"R'"`) into a move object |
 | `parseAlgorithm(str)` | Parse a space-separated algorithm string into an array of move objects |
+| `invertToken(token)` | Invert a single token — `"R"` → `"R'"`, `"R2"` → `"R2"` |
+| `invertAlgorithm(str)` | Invert a whole algorithm (reversed order, each move inverted) |
 | `generateScramble(length?)` | Generate a random WCA-style scramble string (default length: 20) |
+| `getStepSetup(step)` | The setup sequence for a tutorial step — its explicit `setup`, or the inverse of its algorithm |
 | `TUTORIAL_STEPS` | Array of the six tutorial step objects |
 | `QUICK_ALGORITHMS` | Array of built-in quick algorithm objects |
 

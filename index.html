@@ -27,7 +27,7 @@
         <button id="btn-practice" class="mode-btn" aria-pressed="false">🎯 Practice</button>
       </div>
       <div class="header-right">
-        <button id="btn-reset" class="icon-btn" title="Reset to solved state">↺ Reset</button>
+        <button id="btn-reset" class="icon-btn" title="Reset to this step's starting position">↺ Reset</button>
         <button id="btn-scramble" class="icon-btn" title="Apply random scramble">🔀 Scramble</button>
       </div>
     </header>
@@ -58,6 +58,15 @@
             </div>
             <h2 id="step-title"></h2>
             <p id="step-description"></p>
+
+            <div id="step-setup" class="setup-note">
+              <span class="setup-headline">Cube set up for this step</span>
+              <span class="setup-body">
+                Everything is solved except the pieces this algorithm puts back
+                — run it once to finish the cube.
+              </span>
+              <code id="setup-moves" class="setup-moves"></code>
+            </div>
 
             <div class="alg-section">
               <div class="alg-label">Algorithm</div>

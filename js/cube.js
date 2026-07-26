@@ -189,6 +189,8 @@ export class RubiksCubeApp {
         for (let z = -1; z <= 1; z++) {
           const mesh = new THREE.Mesh(geo, makeCubieMaterials(x, y, z));
           mesh.position.set(x, y, z);
+          // Solved-state position, used to detect which pieces are unsolved.
+          mesh.userData.homePosition = { x, y, z };
           mesh.castShadow    = true;
           mesh.receiveShadow = true;
           this.scene.add(mesh);
@@ -345,8 +347,10 @@ export class RubiksCubeApp {
       // Pulse the emissive intensity of any highlighted cubies
       if (this._highlightedCubies.length > 0) {
         this._highlightTime += delta;
-        // Gentle 1 Hz pulse between 0.25 and 0.55 intensity
-        const intensity = 0.4 + 0.15 * Math.sin(this._highlightTime * 2 * Math.PI);
+        // Gentle 1 Hz pulse between 0.15 and 0.35 intensity – light enough
+        // that the sticker colours underneath stay readable even when a whole
+        // layer is highlighted.
+        const intensity = 0.25 + 0.1 * Math.sin(this._highlightTime * 2 * Math.PI);
         for (const c of this._highlightedCubies) {
           if (Array.isArray(c.material)) {
             c.material.forEach(m => { m.emissiveIntensity = intensity; });
@@ -562,14 +566,52 @@ export class RubiksCubeApp {
   }
 
   /**
-   * Apply a scramble (array of parsed moves) instantly, then display result.
-   * Resets the cube first.
+   * Reset the cube to solved, then apply `moves` (array of parsed moves)
+   * instantly — no animation, no callbacks. Used for scrambles and for
+   * tutorial setup positions.
    */
-  applyScramble(moves) {
+  applyMovesInstant(moves) {
     this.reset();
     for (const m of moves) {
       this._applyInstant(m);
     }
+  }
+
+  /**
+   * Apply a scramble (array of parsed moves) instantly, then display result.
+   * Resets the cube first.
+   */
+  applyScramble(moves) {
+    this.applyMovesInstant(moves);
+  }
+
+  /**
+   * Positions of every cubie that is not in its solved state — either away
+   * from its home position, or sitting at home but twisted/flipped.
+   * Centres and the hidden core are ignored: they have no orientation that
+   * the standard face moves can disturb visibly.
+   *
+   * @returns {Array<{x:number,y:number,z:number}>} current cubie positions
+   */
+  getUnsolvedPositions() {
+    const out = [];
+    for (const cubie of this.cubies) {
+      const pos = {
+        x: Math.round(cubie.position.x),
+        y: Math.round(cubie.position.y),
+        z: Math.round(cubie.position.z),
+      };
+      const isEdgeOrCorner =
+        (pos.x !== 0 ? 1 : 0) + (pos.y !== 0 ? 1 : 0) + (pos.z !== 0 ? 1 : 0) >= 2;
+
+      const home = cubie.userData.homePosition;
+      const displaced = !home || home.x !== pos.x || home.y !== pos.y || home.z !== pos.z;
+      // |w| == 1 ⇔ identity rotation (or a full turn back onto itself)
+      const twisted = isEdgeOrCorner && Math.abs(cubie.quaternion.w) < 1 - 1e-6;
+
+      if (displaced || twisted) out.push(pos);
+    }
+    return out;
   }
 
   /** Set animation speed (1 = slow … 10 = fast). */
@@ -652,11 +694,11 @@ export class RubiksCubeApp {
         if (Array.isArray(cubie.material)) {
           cubie.material.forEach(m => {
             m.emissive.setHex(0x00ddff);
-            m.emissiveIntensity = 0.4;
+            m.emissiveIntensity = 0.25;
           });
         } else if (cubie.material) {
           cubie.material.emissive.setHex(0x00ddff);
-          cubie.material.emissiveIntensity = 0.4;
+          cubie.material.emissiveIntensity = 0.25;
         }
         this._highlightedCubies.push(cubie);
       }
