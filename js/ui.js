@@ -7,6 +7,7 @@ import {
   parseMove,
   parseAlgorithm,
   generateScramble,
+  getStepSetup,
   TUTORIAL_STEPS,
   QUICK_ALGORITHMS,
 } from './logic.js';
@@ -57,9 +58,14 @@ export class UI {
     this.algTokens     = [];   // raw token strings for current algorithm
     this._cursor       = -1;   // step-helper cursor (-1 = no session loaded)
     this._cursorTotal  = 0;
+    // Positions of the pieces left unsolved by the current step's setup.
+    // null → the setup position is no longer on the cube (e.g. after a
+    // scramble), so the step's static `pieces` list is highlighted instead.
+    this._stepHighlight = null;
 
     this._wireCallbacks();
     this._wireControls();
+    this._updateResetBtnTitle();
     this._renderTutorialStep();
     this._renderQuickAlgs();
     this._updateStatusIdle();
@@ -121,7 +127,14 @@ export class UI {
 
     // Header buttons
     this._on('btn-reset', 'click', () => {
-      this.cube.reset();
+      // In tutorial mode "reset" means "back to the start of this step", i.e.
+      // the setup position — not the solved cube, which would leave the step's
+      // algorithm with nothing to do.
+      if (this.mode === 'tutorial') {
+        this._applyStepSetup();
+      } else {
+        this.cube.reset();
+      }
       this._clearExecutionState();
       this._reloadTutorialSession();
       this._hideBanner();
@@ -132,6 +145,11 @@ export class UI {
       const moves    = parseAlgorithm(scramble);
       this.cube.applyScramble(moves);
       this._showBanner(scramble);
+      // The step's setup position is gone – fall back to the static piece list
+      // and stop claiming the cube is set up for the step. ↺ Reset brings both
+      // back.
+      this._stepHighlight = null;
+      this._renderSetupDisplay('');
       this._clearExecutionState();
       this._reloadTutorialSession();
     });
@@ -302,6 +320,11 @@ export class UI {
     document.getElementById('step-stage-label').textContent = step.stage;
     document.getElementById('step-description').textContent = step.description;
     document.getElementById('step-tip').textContent         = step.tip;
+
+    // Put the cube into this step's starting position: solved except for the
+    // pieces the step's algorithm puts back.
+    this._applyStepSetup();
+    this._hideBanner();
 
     // Algorithm tokens
     this.algTokens = step.algorithm.trim().split(/\s+/);
@@ -527,7 +550,11 @@ export class UI {
     if (!this.isExecuting) {
       if (mode === 'tutorial') {
         const step = TUTORIAL_STEPS[this.stepIndex];
-        this.cube.highlightPieces(step.pieces || []);
+        // Restore the step's starting position – practice may have left the
+        // cube in any state at all.
+        this._applyStepSetup();
+        this._hideBanner();
+        this._applyTutorialHighlight();
         // Rebase the step-helper session on the tutorial step's algorithm
         // (the loaded session may still belong to a practice algorithm).
         this.algTokens = step.algorithm.trim().split(/\s+/);
@@ -556,6 +583,7 @@ export class UI {
     pracBtn.setAttribute('aria-pressed', String(mode === 'practice'));
     document.getElementById('tutorial-panel').style.display = mode === 'tutorial' ? 'flex' : 'none';
     document.getElementById('practice-panel').style.display = mode === 'practice' ? 'flex' : 'none';
+    this._updateResetBtnTitle();
 
     // Re-render token highlights into the now-visible panel only when
     // mid-execution — avoids copying tutorial tokens into #custom-alg-display
@@ -563,6 +591,15 @@ export class UI {
     if (this.isExecuting) {
       this._updateTokenHighlight(this.activeMoveIdx);
     }
+  }
+
+  /** Reset means different things per mode – keep the tooltip honest. */
+  _updateResetBtnTitle() {
+    const btn = document.getElementById('btn-reset');
+    if (!btn) return;
+    btn.title = this.mode === 'tutorial'
+      ? "Reset to this step's starting position"
+      : 'Reset to solved state';
   }
 
   // ── Execute button state ────────────────────────────────────────────────────
@@ -661,9 +698,43 @@ export class UI {
     }
   }
 
+  /**
+   * Put the cube into the current tutorial step's starting position.
+   *
+   * The setup is the inverse of the step's algorithm, so the cube ends up
+   * solved apart from the pieces that algorithm restores — executing the step
+   * once therefore completes the cube. The pieces left out of place become the
+   * step's highlight, so the glow marks exactly what is still missing.
+   */
+  _applyStepSetup() {
+    const step = TUTORIAL_STEPS[this.stepIndex];
+    if (!step) return;
+
+    const setup = getStepSetup(step);
+    this.cube.applyMovesInstant(parseAlgorithm(setup));
+
+    const unsolved = this.cube.getUnsolvedPositions();
+    this._stepHighlight = unsolved.length > 0 ? unsolved : null;
+
+    this._renderSetupDisplay(setup);
+  }
+
+  /** Show the setup sequence that produced the current starting position. */
+  _renderSetupDisplay(setup) {
+    const el = document.getElementById('step-setup');
+    if (!el) return;
+    const movesEl = document.getElementById('setup-moves');
+    if (movesEl) movesEl.textContent = setup;
+    el.style.display = setup ? '' : 'none';
+  }
+
+  /**
+   * Highlight the pieces this step is about: the ones its setup left unsolved
+   * when that setup is still on the cube, otherwise the step's static list.
+   */
   _applyTutorialHighlight() {
     const step = TUTORIAL_STEPS[this.stepIndex];
-    this.cube.highlightPieces(step?.pieces || []);
+    this.cube.highlightPieces(this._stepHighlight ?? step?.pieces ?? []);
   }
 
   /**
